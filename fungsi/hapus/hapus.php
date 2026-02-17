@@ -1,5 +1,5 @@
 <?php
-
+ob_start();
 session_start();
 if (!empty($_SESSION['admin'])) {
     require '../../config.php';
@@ -67,9 +67,19 @@ if (!empty($_SESSION['admin'])) {
     }
 
     if (get_get_param('jual') !== '') {
+        // Check if AJAX request
+        $isAjax = (get_get_param('ajax') === '1') || 
+                  (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest');
+        
         $barangId = get_get_param('brg');
         $penjualanId = get_get_param('id');
         if ($barangId === '' || !preg_match('/^[A-Za-z0-9-]+$/', $barangId) || $penjualanId === '' || !ctype_digit($penjualanId)) {
+            if ($isAjax) {
+                ob_clean();
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'message' => 'Data penjualan tidak valid']);
+                exit;
+            }
             echo '<script>alert("Data penjualan tidak valid");history.go(-1);</script>';
             exit;
         }
@@ -82,13 +92,33 @@ if (!empty($_SESSION['admin'])) {
         $sql = 'DELETE FROM penjualan WHERE id_penjualan=?';
         $row = $config->prepare($sql);
         $row->execute([$penjualanId]);
+        
+        if ($isAjax) {
+            ob_clean();
+            header('Content-Type: application/json');
+            echo json_encode(['success' => true, 'message' => 'Barang berhasil dihapus']);
+            exit;
+        }
+        
         echo '<script>window.location="../../index.php?page=jual"</script>';
     }
 
     if (get_get_param('penjualan') !== '') {
+        // Check if AJAX request
+        $isAjax = (get_get_param('ajax') === '1') || 
+                  (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest');
+        
         $sql = 'DELETE FROM penjualan';
         $row = $config->prepare($sql);
         $row->execute();
+        
+        if ($isAjax) {
+            ob_clean();
+            header('Content-Type: application/json');
+            echo json_encode(['success' => true, 'message' => 'Keranjang berhasil dikosongkan']);
+            exit;
+        }
+        
         echo '<script>window.location="../../index.php?page=jual"</script>';
     }
 
@@ -119,4 +149,22 @@ if (!empty($_SESSION['admin'])) {
         echo '<script>window.location="../../index.php?page=kelola_user/list_user&remove=hapus-data"</script>';
     }
 
+    // Hapus Customer
+    if (get_get_param('customer') !== '') {
+        $id = get_get_param('customer');
+        if ($id === '' || !ctype_digit($id)) {
+            echo '<script>alert("Data customer tidak valid");history.go(-1);</script>';
+            exit;
+        }
+
+        // Hapus dari tabel customer
+        $sql = 'DELETE FROM customer WHERE id_customer=?';
+        $row = $config->prepare($sql);
+        $row->execute([$id]);
+
+        echo '<script>window.location="../../index.php?page=customer&remove=hapus-data"</script>';
+    }
+} else {
+    echo '<script>window.location="../../index.php";</script>';
+    exit;
 }

@@ -72,13 +72,16 @@
             <thead>
                 <tr bgcolor="yellow">
                     <th> No</th>
-                    <th> ID Barang</th>
-                    <th> Nama Barang</th>
+                    <th> ID Transaksi</th>
+                    <th> Barang Dibeli</th>
                     <th style="width:10%;"> Jumlah</th>
                     <th style="width:10%;"> Modal</th>
                     <th style="width:10%;"> Total</th>
+                    <th style="width:10%;"> Bayar</th>
+                    <th style="width:10%;"> Kembalian</th>
                     <th> Kasir</th>
-                    <th> Tanggal Input</th>
+                    <th> Customer</th>
+                    <th> Tanggal</th>
                 </tr>
             </thead>
             <tbody>
@@ -103,18 +106,24 @@
                     $modal = 0;
                     foreach($hasil as $isi){ 
                         $bayar += $isi['total'];
-                        $modal += $isi['harga_beli'] * $isi['jumlah'];
-                        $jumlah += $isi['jumlah'];
+                        $modal += $isi['modal_total'];
+                        $jumlah += $isi['jumlah_total'];
+                        
+                        // Generate ID Transaksi dari id_nota_min
+                        $idTransaksi = 'TRX-' . str_pad((string)$isi['id_nota_min'], 6, '0', STR_PAD_LEFT);
                 ?>
                 <tr>
                     <td><?php echo $no;?></td>
-                    <td><?= htmlspecialchars($isi['id_barang'], ENT_QUOTES, 'UTF-8');?></td>
-                    <td><?= htmlspecialchars($isi['nama_barang'], ENT_QUOTES, 'UTF-8');?></td>
-                    <td><?= htmlspecialchars($isi['jumlah'], ENT_QUOTES, 'UTF-8');?> </td>
-                    <td>Rp.<?php echo number_format($isi['harga_beli']* $isi['jumlah']);?>,-</td>
-                    <td>Rp.<?php echo number_format($isi['total']);?>,-</td>
-                    <td><?= htmlspecialchars($isi['nm_member'], ENT_QUOTES, 'UTF-8');?></td>
-                    <td><?= htmlspecialchars($isi['tanggal_input'], ENT_QUOTES, 'UTF-8');?></td>
+                    <td><strong><?= htmlspecialchars($idTransaksi, ENT_QUOTES, 'UTF-8');?></strong></td>
+                    <td><?= htmlspecialchars((string)$isi['barang_list'], ENT_QUOTES, 'UTF-8');?></td>
+                    <td><?= htmlspecialchars((string)$isi['jumlah_total'], ENT_QUOTES, 'UTF-8');?> </td>
+                    <td>Rp <?php echo number_format($isi['modal_total']);?>,-</td>
+                    <td>Rp <?php echo number_format($isi['total']);?>,-</td>
+                    <td>Rp <?php echo number_format((float)$isi['bayar']);?>,-</td>
+                    <td>Rp <?php echo number_format((float)$isi['kembalian']);?>,-</td>
+                    <td><?= htmlspecialchars((string)$isi['nm_member'], ENT_QUOTES, 'UTF-8');?></td>
+                    <td><?= htmlspecialchars((string)($isi['nama_customer'] ?? '-'), ENT_QUOTES, 'UTF-8');?></td>
+                    <td><?= htmlspecialchars((string)$isi['tanggal_input'], ENT_QUOTES, 'UTF-8');?></td>
                 </tr>
                 <?php $no++; }?>
                 <tr>
@@ -122,11 +131,12 @@
                     <td>-</td>
                     <td><b>Total Terjual</b></td>
                     <td><b><?php echo $jumlah;?></b></td>
-                    <td><b>Rp.<?php echo number_format($modal);?>,-</b></td>
-                    <td><b>Rp.<?php echo number_format($bayar);?>,-</b></td>
-                    <td><b>Keuntungan</b></td>
+                    <td><b>Rp <?php echo number_format($modal);?>,-</b></td>
+                    <td><b>Rp <?php echo number_format($bayar);?>,-</b></td>
+                    <td colspan="2">-</td>
+                    <td colspan="2"><b>Keuntungan</b></td>
                     <td><b>
-                        Rp.<?php echo number_format($bayar-$modal);?>,-</b></td>
+                        Rp <?php echo number_format($bayar-$modal);?>,-</b></td>
                 </tr>
             </tbody>
         </table>

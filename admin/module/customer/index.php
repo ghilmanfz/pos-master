@@ -1,0 +1,175 @@
+<!--sidebar end-->
+      
+<!-- **********************************************************************************************************************************************************
+MAIN CONTENT
+*********************************************************************************************************************************************************** -->
+<!--main content start-->
+<?php
+$successParam = filter_input(INPUT_GET, 'success', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]);
+$showSuccess = is_string($successParam) && $successParam !== '';
+
+$successAddParam = filter_input(INPUT_GET, 'success-add', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]);
+$showSuccessAdd = is_string($successAddParam) && $successAddParam !== '';
+?>
+<h4>Data Customer / Member Pelanggan</h4>
+<br>
+<?php if($showSuccess){?>
+<div class="alert alert-success">
+    <p>Edit Data Berhasil !</p>
+</div>
+<?php }?>
+<?php if($showSuccessAdd){?>
+<div class="alert alert-success">
+    <p>Tambah Data Berhasil !</p>
+</div>
+<?php }?>
+
+<div class="card shadow-sm col-md-8 offset-md-2 p-0 mb-3">
+    <div class="card-header bg-primary text-white">
+        <i class="fa fa-user-plus"></i> Form Tambah Customer
+    </div>
+    <div class="card-body">
+        <form method="post" action="fungsi/tambah/tambah.php?customer=tambah">
+            <?php echo csrf_field(); ?>
+            <div class="form-row">
+                <div class="form-group col-md-6">
+                    <label>Nama Customer *</label>
+                    <input type="text" class="form-control" name="nama_customer" required>
+                </div>
+                <div class="form-group col-md-6">
+                    <label>No Telepon (WhatsApp) *</label>
+                    <input type="text" class="form-control" name="no_telepon" required placeholder="Contoh: 628123456789">
+                    <small class="text-muted">Format: 62xxx (tanpa 0 di depan)</small>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group col-md-8">
+                    <label>Alamat</label>
+                    <textarea class="form-control" name="alamat" rows="2"></textarea>
+                </div>
+                <div class="form-group col-md-4">
+                    <label>Email</label>
+                    <input type="email" class="form-control" name="email">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-success"><i class="fa fa-save"></i> Simpan Customer</button>
+        </form>
+    </div>
+</div>
+
+ <div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped" id="example1">
+                <thead>
+                    <tr>
+                        <th>No</th>
+                        <th>Nama Customer</th>
+                        <th>No Telepon</th>
+                        <th>Alamat</th>
+                        <th>Email</th>
+                        <th>Total Belanja</th>
+                        <th>Poin Diskon</th>
+                        <th>Tgl Daftar</th>
+                        <th>Status</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php 
+                    $no = 1;
+                    $customers = $lihat->customer();
+                    foreach($customers as $customer){
+                    ?>
+                    <tr>
+                        <td><?= htmlspecialchars((string)$no++, ENT_QUOTES, 'UTF-8');?></td>
+                        <td><?= htmlspecialchars($customer['nama_customer'], ENT_QUOTES, 'UTF-8');?></td>
+                        <td><?= htmlspecialchars($customer['no_telepon'], ENT_QUOTES, 'UTF-8');?></td>
+                        <td><?= htmlspecialchars($customer['alamat'] ?? '-', ENT_QUOTES, 'UTF-8');?></td>
+                        <td><?= htmlspecialchars($customer['email'] ?? '-', ENT_QUOTES, 'UTF-8');?></td>
+                        <td>Rp. <?= number_format($customer['total_belanja'], 0, ',', '.');?></td>
+                        <td><?= htmlspecialchars((string)$customer['poin_diskon'], ENT_QUOTES, 'UTF-8');?> Poin</td>
+                        <td><?= htmlspecialchars($customer['tgl_daftar'], ENT_QUOTES, 'UTF-8');?></td>
+                        <td>
+                            <?php if($customer['status'] == 'aktif'){?>
+                                <span class="badge badge-success">Aktif</span>
+                            <?php } else {?>
+                                <span class="badge badge-danger">Non-Aktif</span>
+                            <?php }?>
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-warning btn-sm" data-toggle="modal" 
+                                data-target="#modalEditCustomer<?= htmlspecialchars((string)$customer['id_customer'], ENT_QUOTES, 'UTF-8');?>">
+                                <i class="fa fa-edit"></i>
+                            </button>
+                            <a href="fungsi/hapus/hapus.php?customer=<?= htmlspecialchars((string)$customer['id_customer'], ENT_QUOTES, 'UTF-8');?>&csrf_token=<?php echo urlencode(csrf_get_token());?>" 
+                                class="btn btn-danger btn-sm" onclick="return confirm('Yakin ingin menghapus customer ini?')">
+                                <i class="fa fa-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    <?php } ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<?php foreach($customers as $customer){ ?>
+<!-- Modal Edit Customer -->
+<div class="modal fade" id="modalEditCustomer<?= htmlspecialchars((string)$customer['id_customer'], ENT_QUOTES, 'UTF-8');?>" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Customer</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form method="post" action="fungsi/edit/edit.php?customer=update">
+                <?php echo csrf_field(); ?>
+                <input type="hidden" name="id_customer" value="<?= htmlspecialchars((string)$customer['id_customer'], ENT_QUOTES, 'UTF-8');?>">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Nama Customer *</label>
+                        <input type="text" class="form-control" name="nama_customer" 
+                            value="<?= htmlspecialchars($customer['nama_customer'], ENT_QUOTES, 'UTF-8');?>" required>
+                    </div>
+                    <div class="form-group">
+                        <label>No Telepon (WhatsApp) *</label>
+                        <input type="text" class="form-control" name="no_telepon" 
+                            value="<?= htmlspecialchars($customer['no_telepon'], ENT_QUOTES, 'UTF-8');?>" required 
+                            placeholder="Contoh: 628123456789">
+                        <small class="text-muted">Format: 628xxx (gunakan 62 untuk kode Indonesia)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Alamat</label>
+                        <textarea class="form-control" name="alamat" rows="3"><?= htmlspecialchars($customer['alamat'] ?? '', ENT_QUOTES, 'UTF-8');?></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" class="form-control" name="email" 
+                            value="<?= htmlspecialchars($customer['email'] ?? '', ENT_QUOTES, 'UTF-8');?>">
+                    </div>
+                    <div class="form-group">
+                        <label>Poin Diskon</label>
+                        <input type="number" class="form-control" name="poin_diskon" 
+                            value="<?= htmlspecialchars((string)$customer['poin_diskon'], ENT_QUOTES, 'UTF-8');?>">
+                    </div>
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select class="form-control" name="status">
+                            <option value="aktif" <?= $customer['status'] == 'aktif' ? 'selected' : '';?>>Aktif</option>
+                            <option value="nonaktif" <?= $customer['status'] == 'nonaktif' ? 'selected' : '';?>>Non-Aktif</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
+                    <button type="submit" class="btn btn-primary">Update</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<?php } ?>

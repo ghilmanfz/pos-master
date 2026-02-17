@@ -90,7 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <select name="role" class="form-control" required>
                     <option value="">-- Pilih Role --</option>
                     <option value="admin">Admin</option>
-                    <option value="view">View</option>
+                    <option value="Kasir">Kasir</option>
                 </select>
             </div>
 

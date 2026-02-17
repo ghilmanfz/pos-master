@@ -16,7 +16,9 @@
  */
 
 date_default_timezone_set("Asia/Jakarta");
-error_reporting(0);
+// error_reporting(0); // Commented out untuk debugging - enable error display
+error_reporting(E_ALL); // Show all errors untuk debugging
+ini_set('display_errors', '1');
 
 	// sesuaikan dengan server anda
 	$host 	= 'localhost'; // host server

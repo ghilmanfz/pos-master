@@ -32,6 +32,7 @@
                                         'barang/details',
                                         'barang/edit',
                                         'kategori',
+                                        'customer',
                                         'pengaturan',
                                         'jual',
                                         'laporan',

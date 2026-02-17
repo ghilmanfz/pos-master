@@ -7,6 +7,7 @@
 <?php
     $id = $_SESSION['admin']['id_member'];
     $hasil = $lihat -> member_edit($id);
+    $gambarUser = !empty($hasil['gambar']) ? $hasil['gambar'] : 'default.png';
     $successParam = filter_input(INPUT_GET, 'success', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]);
     $showSuccess = is_string($successParam) && $successParam !== '';
 
@@ -32,13 +33,13 @@
                 <h5 class="mt-2"><i class="fa fa-user"></i> Foto Pengguna </h5>
             </div>
             <div class="card-body">
-                <img src="assets/img/user/<?= htmlspecialchars($hasil['gambar'] ?? '', ENT_QUOTES, 'UTF-8');?>" alt="#" class="img-fluid w-100" />
+                <img src="assets/img/user/<?= htmlspecialchars($gambarUser, ENT_QUOTES, 'UTF-8');?>" alt="#" class="img-fluid w-100" />
             </div>
             <div class="card-footer">
                 <form method="POST" action="fungsi/edit/edit.php?gambar=user" enctype="multipart/form-data">
                     <?php echo csrf_field(); ?>
                     <input type="file" accept="image/*" name="foto">
-                    <input type="hidden" value="<?= htmlspecialchars($hasil['gambar'] ?? '', ENT_QUOTES, 'UTF-8');?>" name="foto2">
+                    <input type="hidden" value="<?= htmlspecialchars($gambarUser, ENT_QUOTES, 'UTF-8');?>" name="foto2">
                     <input type="hidden" name="id" value="<?= htmlspecialchars($hasil['id_member'] ?? '', ENT_QUOTES, 'UTF-8');?>">
                     <br><br>	
                     <button type="submit" class="btn btn-primary btn-md" value="Tambah">
@@ -74,7 +75,7 @@
                                 <div class="input-group">
                                     <select name="role" class="form-control" style="border-radius:0px;" required="required">
                                         <option value="admin" <?= ($hasil['role'] ?? '') === 'admin' ? 'selected' : '' ?>>Admin</option>
-                                        <option value="view" <?= ($hasil['role'] ?? '') === 'view' ? 'selected' : '' ?>>View</option>
+                                        <option value="Kasir" <?= ($hasil['role'] ?? '') === 'Kasir' ? 'selected' : '' ?>>Kasir</option>
                                     </select>
                                 </div>
                             </div>

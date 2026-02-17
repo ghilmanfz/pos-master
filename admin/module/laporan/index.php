@@ -1,4 +1,7 @@
  <?php
+        error_reporting(E_ALL);
+        ini_set('display_errors', 1);
+        
         $bulan_tes =array(
                 '01'=>"Januari",
                 '02'=>"Februari",
@@ -29,6 +32,25 @@
         $hariPostRaw = filter_input(INPUT_POST, 'hari', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]);
         $hariPost = is_string($hariPostRaw) ? trim($hariPostRaw) : '';
 ?>
+<style>
+@media print {
+    .no-print {
+        display: none !important;
+    }
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    body {
+        background: white !important;
+    }
+    /* Sembunyikan kolom Aksi saat print */
+    table th:last-child,
+    table td:last-child {
+        display: none !important;
+    }
+}
+</style>
 <div class="row">
 	<div class="col-md-12">
 		<h4>
@@ -42,9 +64,10 @@
                         <?php }else{?>
                         Data Laporan Penjualan <?= htmlspecialchars($bulan_tes[date('m')], ENT_QUOTES, 'UTF-8');?> <?= date('Y');?>
                         <?php }?>
+                       
 		</h4>
 		<br />
-		<div class="card">
+		<div class="card no-print">
 			<div class="card-header">
 				<h5 class="card-title mt-2">Cari Laporan Per Bulan</h5>
 			</div>
@@ -157,14 +180,18 @@
 					<table class="table table-bordered w-100 table-sm" id="example1">
 						<thead>
 							<tr style="background:#DFF0D8;color:#333;">
-								<th> No</th>
-								<th> ID Barang</th>
-								<th> Nama Barang</th>
-								<th style="width:10%;"> Jumlah</th>
-								<th style="width:10%;"> Modal</th>
-								<th style="width:10%;"> Total</th>
-								<th> Kasir</th>
-								<th> Tanggal Input</th>
+								<th style="background:#0bb365;color:#fff;text-align: center;"> No</th>
+								<th style="background:#0bb365;color:#fff;text-align: center;"> ID Transaksi</th>
+								<th style="background:#0bb365;color:#fff;text-align: center;"> Barang Dibeli</th>
+								<th style="width:10%;background:#0bb365;color:#fff;text-align: center;"> Jumlah</th>
+								<th style="width:10%;background:#0bb365;color:#fff;text-align: center;"> Modal</th>
+								<th style="width:10%;background:#0bb365;color:#fff;text-align: center;"> Total</th>
+								<th style="width:10%;background:#0bb365;color:#fff;text-align: center;"> Bayar</th>
+								<th style="width:10%;background:#0bb365;color:#fff;text-align: center;"> Kembalian</th>
+								<th style="background:#0bb365;color:#fff;text-align: center;">Kasir</th>
+								<th style="background:#0bb365;color:#fff;text-align: center;"> Customer/Member</th>
+								<th style="background:#0bb365;color:#fff;text-align: center;"> Tanggal</th>
+								<th style="background:#0bb365;color:#fff;text-align: center;">Aksi</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -192,18 +219,38 @@
 								$modal = 0;
 								foreach($hasil as $isi){ 
 									$bayar += $isi['total'];
-									$modal += $isi['harga_beli']* $isi['jumlah'];
-									$jumlah += $isi['jumlah'];
+									$modal += $isi['modal_total'];
+									$jumlah += $isi['jumlah_total'];
+									
+									// Generate ID Transaksi dari id_nota_min
+									$idNotaMin = isset($isi['id_nota_min']) ? $isi['id_nota_min'] : (isset($isi['id_nota']) ? $isi['id_nota'] : 0);
+									$idNotaMax = isset($isi['id_nota_max']) ? $isi['id_nota_max'] : $idNotaMin;
+								$idTransaksi = 'TRX-' . str_pad((string)$idNotaMin, 6, '0', STR_PAD_LEFT);
+									$idMemberEnc = urlencode($isi['id_member']);
+									$idCustomerEnc = urlencode($isi['id_customer'] ?? '0');
+									$idNotaMinEnc = urlencode($idNotaMin);
+									$idNotaMaxEnc = urlencode($idNotaMax);
 							?>
 							<tr>
 								<td><?= htmlspecialchars((string) $no, ENT_QUOTES, 'UTF-8');?></td>
-								<td><?= htmlspecialchars($isi['id_barang'], ENT_QUOTES, 'UTF-8');?></td>
-								<td><?= htmlspecialchars($isi['nama_barang'], ENT_QUOTES, 'UTF-8');?></td>
-								<td><?= htmlspecialchars($isi['jumlah'], ENT_QUOTES, 'UTF-8');?> </td>
-								<td>Rp.<?php echo number_format($isi['harga_beli']* $isi['jumlah']);?>,-</td>
-								<td>Rp.<?php echo number_format($isi['total']);?>,-</td>
+								<td><strong><?= htmlspecialchars($idTransaksi, ENT_QUOTES, 'UTF-8');?></strong></td>
+								<td><?= htmlspecialchars($isi['barang_list'], ENT_QUOTES, 'UTF-8');?></td>
+								<td><?= htmlspecialchars($isi['jumlah_total'], ENT_QUOTES, 'UTF-8');?> </td>
+								<td>Rp <?php echo number_format($isi['modal_total']);?>,-</td>
+								<td>Rp <?php echo number_format($isi['total']);?>,-</td>
+								<td>Rp <?php echo number_format((float)$isi['bayar']);?>,-</td>
+								<td>Rp <?php echo number_format((float)$isi['kembalian']);?>,-</td>
 								<td><?= htmlspecialchars($isi['nm_member'], ENT_QUOTES, 'UTF-8');?></td>
+								<td><?= htmlspecialchars($isi['nama_customer'] ?? '-', ENT_QUOTES, 'UTF-8');?></td>
 								<td><?= htmlspecialchars($isi['tanggal_input'], ENT_QUOTES, 'UTF-8');?></td>
+								<td>
+									<a href="print_laporan.php?tanggal=<?= $tanggalEnc;?>&id_member=<?= $idMemberEnc;?>&id_customer=<?= $idCustomerEnc;?>&id_nota_min=<?= $idNotaMinEnc;?>&id_nota_max=<?= $idNotaMaxEnc;?>" 
+									   target="_blank" 
+									   class="btn btn-primary btn-sm no-print"
+									   title="Print Transaksi <?= htmlspecialchars($idTransaksi, ENT_QUOTES, 'UTF-8');?>">
+										<i class="fa fa-print"></i> Print
+									</a>
+								</td>
 							</tr>
 							<?php $no++; }?>
 						</tbody>
@@ -211,11 +258,12 @@
 							<tr>
 								<th colspan="3">Total Terjual</td>
 								<th><?= htmlspecialchars($jumlah, ENT_QUOTES, 'UTF-8');?></td>
-								<th>Rp.<?php echo number_format($modal);?>,-</th>
-								<th>Rp.<?php echo number_format($bayar);?>,-</th>
-								<th style="background:#0bb365;color:#fff;">Keuntungan</th>
-								<th style="background:#0bb365;color:#fff;">
-									Rp.<?php echo number_format($bayar-$modal);?>,-</th>
+								<th>Rp <?php echo number_format($modal);?>,-</th>
+								<th>Rp <?php echo number_format($bayar);?>,-</th>
+								<th colspan="2">-</th>
+								<th colspan="2" style="background:#0bb365;color:#fff;">Keuntungan</th>
+								<th colspan="2" style="background:#0bb365;color:#fff;">
+									Rp <?php echo number_format($bayar-$modal);?>,-</th>
 							</tr>
 						</tfoot>
 					</table>

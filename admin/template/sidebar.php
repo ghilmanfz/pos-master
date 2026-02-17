@@ -12,7 +12,7 @@
         <div class="sidebar-brand-icon rotate-n-15">
             <i class="fas fa-cash-register"></i>
         </div>
-        <div class="sidebar-brand-text mx-3">POS Codekop<sup></sup></div>
+        <div class="sidebar-brand-text mx-3">POS <sup></sup></div>
     </a>
 
     <!-- Divider -->
@@ -40,6 +40,13 @@
                 <a class="collapse-item" href="index.php?page=kategori">Kategori</a>
             </div>
         </div>
+    </li>
+
+    <!-- Nav Item - Customer (untuk admin) -->
+    <li class="nav-item active">
+        <a class="nav-link" href="index.php?page=customer">
+            <i class="fas fa-fw fa-users"></i>
+            <span>Customer / Member</span></a>
     </li>
 
     <!-- Nav Item - User (tambahan baru) -->
@@ -114,8 +121,9 @@
                 <li class="nav-item dropdown no-arrow">
                     <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-toggle="dropdown"
                         aria-haspopup="true" aria-expanded="false">
+                        <?php $gambarProfil = !empty($hasil_profil['gambar']) ? $hasil_profil['gambar'] : 'default.png'; ?>
                         <img class="img-profile rounded-circle"
-                            src="assets/img/user/<?php echo $hasil_profil['gambar'];?>">
+                            src="assets/img/user/<?php echo htmlspecialchars($gambarProfil, ENT_QUOTES, 'UTF-8');?>">
                         <span
                             class="mr-2 d-none d-lg-inline text-gray-600 small ml-2"><?php echo $hasil_profil['nm_member'];?></span>
                         <i class="fas fa-angle-down"></i>

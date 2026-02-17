@@ -42,7 +42,8 @@ if (!function_exists('csrf_guard')) {
         $token = $_POST['csrf_token'] ?? '';
         if (!csrf_validate_token($token)) {
             http_response_code(400);
-            exit('Invalid CSRF token');
+            echo '<script>alert("Session kadaluarsa, silakan refresh halaman lalu coba simpan lagi.");history.go(-1);</script>';
+            exit;
         }
     }
 }
@@ -52,7 +53,8 @@ if (!function_exists('csrf_require_token')) {
     {
         if (!csrf_validate_token($token)) {
             http_response_code(400);
-            exit('Invalid CSRF token');
+            echo '<script>alert("Session kadaluarsa, silakan refresh halaman lalu coba lagi.");history.go(-1);</script>';
+            exit;
         }
     }
 }

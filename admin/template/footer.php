@@ -8,8 +8,9 @@
         <div class="container my-auto">
             <div class="copyright text-center my-auto">
                 <span>
-                    <?php echo date('Y');?> - Sistem Penjualan Barang Berbasis Web |
-                    BY <b><a href="https://codekop.com" target="_blank">CODEKOP.COM</a></b>
+                    <?php echo date('Y');?> -Copyright|Sistem Penjualan Barang Berbasis Web 
+                    
+                    
                 </span>
             </div>
         </div>
@@ -42,9 +43,7 @@
         $row = $config -> prepare($sql);
         $row -> execute();
         $q = $row -> fetch();
-            if($q['stok'] == 3){	
-            if($q['stok'] == 2){	
-            if($q['stok'] == 1){	
+            if($q && is_array($q) && isset($q['stok']) && $q['stok'] <= 3){	
     ?>
    <script type="text/javascript">
     //template
@@ -68,7 +67,7 @@
         return false;
     });
    </script>
-   <?php }}}?>
+   <?php }?>
    <script type="application/javascript">
     //angka 500 dibawah ini artinya pesan akan muncul dalam 0,5 detik setelah document ready
     $(document).ready(function() {
