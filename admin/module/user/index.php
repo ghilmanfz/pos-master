@@ -5,7 +5,9 @@
       *********************************************************************************************************************************************************** -->
 <!--main content start-->
 <?php
-    $id = $_SESSION['admin']['id_member'];
+    // Check if editing another user (from kelola_user list)
+    $idParam = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+    $id = ($idParam !== null && $idParam !== false && $idParam > 0) ? $idParam : $_SESSION['admin']['id_member'];
     $hasil = $lihat -> member_edit($id);
     $gambarUser = !empty($hasil['gambar']) ? $hasil['gambar'] : 'default.png';
     $successParam = filter_input(INPUT_GET, 'success', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]);
@@ -76,6 +78,7 @@
                                     <select name="role" class="form-control" style="border-radius:0px;" required="required">
                                         <option value="admin" <?= ($hasil['role'] ?? '') === 'admin' ? 'selected' : '' ?>>Admin</option>
                                         <option value="Kasir" <?= ($hasil['role'] ?? '') === 'Kasir' ? 'selected' : '' ?>>Kasir</option>
+                                        <option value="view" <?= ($hasil['role'] ?? '') === 'view' ? 'selected' : '' ?>>View Only</option>
                                     </select>
                                 </div>
                             </div>

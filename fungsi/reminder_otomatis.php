@@ -69,20 +69,43 @@ try {
     
     // Ambil daftar customer yang perlu di-reminder
     // Customer yang sudah X hari sejak terakhir beli dan barang nya stok habis/hampir habis
-    $sql = "SELECT DISTINCT cb.*, c.nama_customer, c.no_telepon, b.nama_barang, b.stok, b.harga_jual
+    $sql = "SELECT DISTINCT cb.*, c.nama_customer, c.no_telepon, c.reminder_aktif, c.reminder_interval, c.pesan_custom,
+            b.nama_barang, b.stok, b.harga_jual
             FROM customer_barang cb
             LEFT JOIN customer c ON cb.id_customer = c.id_customer
             LEFT JOIN barang b ON cb.id_barang = b.id_barang
             WHERE c.status = 'aktif' 
+            AND c.reminder_aktif = 'ya'
             AND c.no_telepon != ''
             AND c.no_telepon != '0000000000'
             AND b.stok <= 3
-            AND cb.terakhir_beli <= DATE_SUB(NOW(), INTERVAL ? DAY)
             ORDER BY cb.terakhir_beli ASC";
     
     $row = $config->prepare($sql);
-    $row->execute([$intervalDays]);
-    $customers = $row->fetchAll();
+    $row->execute();
+    $allCustomers = $row->fetchAll();
+    
+    if (count($allCustomers) == 0) {
+        echo "Tidak ada customer yang perlu di-reminder\n";
+        exit;
+    }
+    
+    // Filter customer berdasarkan interval masing-masing
+    $customers = [];
+    foreach ($allCustomers as $customer) {
+        // Gunakan interval custom jika ada, atau pakai interval global
+        $customerInterval = !empty($customer['reminder_interval']) ? (int)$customer['reminder_interval'] : $intervalDays;
+        
+        // Hitung selisih hari dari terakhir beli
+        $terakhirBeli = strtotime($customer['terakhir_beli']);
+        $sekarang = time();
+        $selisihHari = floor(($sekarang - $terakhirBeli) / 86400); // 86400 = detik dalam sehari
+        
+        // Jika sudah lebih dari interval yang ditentukan, masukkan ke list
+        if ($selisihHari >= $customerInterval) {
+            $customers[] = $customer;
+        }
+    }
     
     if (count($customers) == 0) {
         echo "Tidak ada customer yang perlu di-reminder (interval: " . $intervalDays . " hari)\n";
@@ -101,11 +124,14 @@ try {
         $stok = $customer['stok'];
         $hargaJual = number_format($customer['harga_jual'], 0, ',', '.');
         
-        // Gunakan template pesan dari database, atau fallback ke default
+        // Gunakan pesan custom per customer jika ada, jika tidak pakai template global
+        $templatePesan = !empty($customer['pesan_custom']) ? $customer['pesan_custom'] : $pesanTemplate;
+        
+        // Gunakan template pesan, atau fallback ke default
         $pesan = str_replace(
             ['{nama}', '{barang}', '{toko}', '{phone}', '{stok}', '{harga}'],
             [$namaCustomer, $namaBarang, $namaToko, $kontakToko, $stok, 'Rp ' . $hargaJual],
-            $pesanTemplate
+            $templatePesan
         );
         
         // Kirim pesan

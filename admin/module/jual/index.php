@@ -108,7 +108,12 @@
 						<div class="mt-2">
 							<label><strong>Gunakan Poin:</strong></label>
 							<input type="number" class="form-control" id="poin_digunakan" min="0" value="0" placeholder="Masukkan jumlah poin">
-							<small class="text-muted">1 Poin = Rp 1.000. Diskon Member 2% otomatis diterapkan!</small>
+							<small class="text-muted d-block">
+								<i class="fa fa-info-circle"></i> <strong>Mekanisme Poin:</strong><br>
+								• <strong>Gunakan:</strong> 1 Poin = Rp 1.000 diskon<br>
+								• <strong>Dapatkan:</strong> Rp 50.000 belanja = +1 Poin<br>
+								• <strong>Bonus:</strong> Diskon Member 2% otomatis!
+							</small>
 						</div>
 					</div>
 				</div>
@@ -294,19 +299,47 @@
                                                                                 }
                                                                                 }
 																	
-// Update total belanja customer dan kurangi poin
+// Update total belanja customer, kurangi poin yang digunakan, dan tambah poin dari belanja baru
 											if($customerId > 0) {
-												$sqlUpdateCustomer = "UPDATE customer SET total_belanja = total_belanja + ?, poin_diskon = poin_diskon - ? WHERE id_customer = ?";
+												// Hitung poin yang didapat dari transaksi ini
+												// 1 poin untuk setiap Rp 50.000 belanja (sebelum diskon)
+												$poinDidapat = floor($total / 50000);
+												
+												// Update: tambah total belanja, kurangi poin yang digunakan, tambah poin yang didapat
+												$sqlUpdateCustomer = "UPDATE customer SET total_belanja = total_belanja + ?, poin_diskon = poin_diskon - ? + ? WHERE id_customer = ?";
 												$rowUpdateCustomer = $config->prepare($sqlUpdateCustomer);
-												$rowUpdateCustomer->execute([$total_akhir, $poin_digunakan, $customerId]);
-																	}
+												$rowUpdateCustomer->execute([$total_akhir, $poin_digunakan, $poinDidapat, $customerId]);
+												
+												// Simpan info poin untuk ditampilkan ke user
+												$infoPoin = '';
+												if($poinDidapat > 0 || $poin_digunakan > 0) {
+													$infoPoin = '\n\n💰 INFO POIN:';
+													if($poin_digunakan > 0) {
+														$infoPoin .= '\n- Poin digunakan: '.$poin_digunakan.' poin';
+													}
+													if($poinDidapat > 0) {
+														$infoPoin .= '\n- Poin didapat: +'.$poinDidapat.' poin';
+													}
+													// Hitung sisa poin
+													$sqlGetPoin = "SELECT poin_diskon FROM customer WHERE id_customer = ?";
+													$rowGetPoin = $config->prepare($sqlGetPoin);
+													$rowGetPoin->execute([$customerId]);
+													$dataPoin = $rowGetPoin->fetch();
+													if($dataPoin) {
+														$infoPoin .= '\n- Sisa poin: '.$dataPoin['poin_diskon'].' poin';
+													}
+												}
+											} else {
+												$poinDidapat = 0;
+												$infoPoin = '';
+											}
 																	
                                                                                 // Auto print struk setelah bayar sukses
                                                                                 $nmMember = urlencode($_SESSION['admin']['nm_member']);
                                                                                 $bayarEnc = urlencode($bayar);
                                                                                 $kembaliEnc = urlencode($hitung);
                                                                                 echo '<script>';
-                                                                                echo 'alert("Belanjaan Berhasil Di Bayar!");';
+                                                                                echo 'alert("Belanjaan Berhasil Di Bayar!'.$infoPoin.'");';
                                                                                 echo 'window.open("print.php?nm_member='.$nmMember.'&bayar='.$bayarEnc.'&kembali='.$kembaliEnc.'", "_blank");';
                                                                                 echo 'setTimeout(function(){ window.location="fungsi/hapus/hapus.php?penjualan=jual&csrf_token='.urlencode(csrf_get_token()).'"; }, 1000);';
                                                                                 echo '</script>';
@@ -823,31 +856,47 @@ $(document).ready(function(){
 						}); 
 					}, 5000);
 					
-					// Reload customer dropdown
+					// Reload customer dropdown dengan cache busting
 					$.ajax({
 						type: 'GET',
-						url: 'fungsi/view/customer_dropdown.php',
+						url: 'fungsi/view/customer_dropdown.php?_t=' + new Date().getTime(),
 						dataType: 'json',
+						cache: false,
 						success: function(customerData){
-							// Update dropdown
-							var select = $("#customer_select");
-							select.empty();
-							select.append('<option value="">-- Pilih Customer (Opsional) --</option>');
-							
-							$.each(customerData.customers, function(i, customer){
-								select.append($('<option>', {
-									value: customer.id_customer,
-									text: customer.nama_customer + ' - ' + customer.no_telepon,
-									'data-nama': customer.nama_customer,
-									'data-phone': customer.no_telepon,
-									'data-poin': customer.poin_diskon
-								}));
-							});
-							
-							// Auto select customer yang baru ditambahkan
-							if(response.id_customer) {
-								select.val(response.id_customer).trigger('change');
+							if(customerData.success && customerData.customers) {
+								// Update dropdown
+								var select = $("#customer_select");
+								select.empty();
+								select.append('<option value="">-- Pilih Customer (Opsional) --</option>');
+								
+								$.each(customerData.customers, function(i, customer){
+									select.append($('<option>', {
+										value: customer.id_customer,
+										text: customer.nama_customer + ' - ' + customer.no_telepon,
+										'data-nama': customer.nama_customer,
+										'data-phone': customer.no_telepon,
+										'data-poin': customer.poin_diskon
+									}));
+								});
+								
+								// Auto select customer yang baru ditambahkan
+								if(response.id_customer) {
+									select.val(response.id_customer).trigger('change');
+								}
+								
+								console.log('Dropdown customer berhasil di-refresh dengan ' + customerData.customers.length + ' customer');
+							} else {
+								console.error('Format response customer tidak valid:', customerData);
+								showNotification('Customer berhasil ditambahkan, silakan refresh halaman untuk melihat customer baru', 'warning');
 							}
+						},
+						error: function(xhr, status, error){
+							console.error('Gagal reload dropdown customer:', {
+								status: xhr.status,
+								responseText: xhr.responseText,
+								error: error
+							});
+							showNotification('Customer berhasil ditambahkan, silakan refresh halaman untuk melihat customer baru', 'warning');
 						}
 					});
 				} else {

@@ -341,6 +341,24 @@ if (!empty($_SESSION['admin'])) {
         $no_telepon = get_post_string('no_telepon');
         $alamat = get_post_string('alamat', true);
         $email = get_post_string('email');
+        $reminder_aktif = get_post_string('reminder_aktif');
+        $reminder_interval = get_post_int('reminder_interval');
+        $pesan_custom = get_post_string('pesan_custom', true);
+        
+        // Set default reminder_aktif jika kosong
+        if ($reminder_aktif === '') {
+            $reminder_aktif = 'ya';
+        }
+        
+        // Jika reminder_interval 0 atau kosong, set ke NULL
+        if ($reminder_interval <= 0) {
+            $reminder_interval = null;
+        }
+        
+        // Jika pesan_custom kosong, set ke NULL
+        if ($pesan_custom === '') {
+            $pesan_custom = null;
+        }
 
         if ($nama_customer === '' || $no_telepon === '') {
             if ($isAjax) {
@@ -379,9 +397,9 @@ if (!empty($_SESSION['admin'])) {
         }
 
         $tgl_daftar = date('j F Y, G:i');
-        $data = [$nama_customer, $no_telepon, $alamat, $email, $tgl_daftar];
+        $data = [$nama_customer, $no_telepon, $alamat, $email, $tgl_daftar, $reminder_aktif, $reminder_interval, $pesan_custom];
         
-        $sql = "INSERT INTO customer (nama_customer, no_telepon, alamat, email, tgl_daftar) VALUES (?,?,?,?,?)";
+        $sql = "INSERT INTO customer (nama_customer, no_telepon, alamat, email, tgl_daftar, reminder_aktif, reminder_interval, pesan_custom) VALUES (?,?,?,?,?,?,?,?)";
         $row = $config->prepare($sql);
         if (!$row) {
             $dbError = $config->errorInfo();

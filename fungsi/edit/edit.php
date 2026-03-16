@@ -253,6 +253,24 @@ if (!empty($_SESSION['admin'])) {
         $email = get_post_string('email');
         $poin_diskon = get_post_int('poin_diskon');
         $status = get_post_string('status');
+        $reminder_aktif = get_post_string('reminder_aktif');
+        $reminder_interval = get_post_int('reminder_interval');
+        $pesan_custom = get_post_string('pesan_custom', true);
+        
+        // Jika reminder_interval 0 atau kosong, set ke NULL
+        if ($reminder_interval <= 0) {
+            $reminder_interval = null;
+        }
+        
+        // Jika pesan_custom kosong, set ke NULL
+        if ($pesan_custom === '') {
+            $pesan_custom = null;
+        }
+        
+        // Set default reminder_aktif jika kosong
+        if ($reminder_aktif === '') {
+            $reminder_aktif = 'ya';
+        }
 
         if ($id_customer <= 0 || $nama_customer === '' || $no_telepon === '') {
             echo '<script>alert("Data tidak lengkap!");history.go(-1);</script>';
@@ -272,8 +290,8 @@ if (!empty($_SESSION['admin'])) {
             exit;
         }
 
-        $data = [$nama_customer, $no_telepon, $alamat, $email, $poin_diskon, $status, $id_customer];
-        $sql = "UPDATE customer SET nama_customer=?, no_telepon=?, alamat=?, email=?, poin_diskon=?, status=? WHERE id_customer=?";
+        $data = [$nama_customer, $no_telepon, $alamat, $email, $poin_diskon, $status, $reminder_aktif, $reminder_interval, $pesan_custom, $id_customer];
+        $sql = "UPDATE customer SET nama_customer=?, no_telepon=?, alamat=?, email=?, poin_diskon=?, status=?, reminder_aktif=?, reminder_interval=?, pesan_custom=? WHERE id_customer=?";
         $row = $config->prepare($sql);
         if (!$row) {
             echo '<script>alert("Gagal mengubah customer. Pastikan struktur database sudah diperbarui.");window.location="../../index.php?page=customer"</script>';
@@ -430,9 +448,10 @@ if (!empty($_SESSION['admin'])) {
         $tlp = get_post_string('tlp');
         $email = get_post_string('email');
         $nik = get_post_string('nik');
+        $role = get_post_string('role');
 
-        $data = [$nama, $alamat, $tlp, $email, $nik, $id];
-        $sql = 'UPDATE member SET nm_member=?,alamat_member=?,telepon=?,email=?,NIK=? WHERE id_member=?';
+        $data = [$nama, $alamat, $tlp, $email, $nik, $role, $id];
+        $sql = 'UPDATE member SET nm_member=?,alamat_member=?,telepon=?,email=?,NIK=?,role=? WHERE id_member=?';
         $row = $config->prepare($sql);
         $row->execute($data);
         echo '<script>window.location="../../index.php?page=user&success=edit-data"</script>';

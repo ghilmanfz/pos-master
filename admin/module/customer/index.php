@@ -52,6 +52,28 @@ $showSuccessAdd = is_string($successAddParam) && $successAddParam !== '';
                     <input type="email" class="form-control" name="email">
                 </div>
             </div>
+            <div class="card bg-light p-3 mb-3">
+                <h6 class="text-primary"><i class="fa fa-bell"></i> Pengaturan Reminder WhatsApp</h6>
+                <div class="form-row">
+                    <div class="form-group col-md-4">
+                        <label>Aktifkan Reminder</label>
+                        <select class="form-control" name="reminder_aktif">
+                            <option value="ya" selected>Ya</option>
+                            <option value="tidak">Tidak</option>
+                        </select>
+                    </div>
+                    <div class="form-group col-md-4">
+                        <label>Interval Hari</label>
+                        <input type="number" class="form-control" name="reminder_interval" placeholder="Kosongkan = Pakai Default">
+                        <small class="text-muted">Kosongkan untuk pakai setting global</small>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Pesan Custom (Opsional)</label>
+                    <textarea class="form-control" name="pesan_custom" rows="3" placeholder="Kosongkan untuk pakai template default. Tag: {nama}, {barang}, {toko}, {phone}, {stok}, {harga}"></textarea>
+                    <small class="text-muted">Contoh: Halo {nama}, stok {barang} sudah tersedia lagi! Hubungi {toko} di {phone}</small>
+                </div>
+            </div>
             <button type="submit" class="btn btn-success"><i class="fa fa-save"></i> Simpan Customer</button>
         </form>
     </div>
@@ -162,6 +184,28 @@ $showSuccessAdd = is_string($successAddParam) && $successAddParam !== '';
                             <option value="aktif" <?= $customer['status'] == 'aktif' ? 'selected' : '';?>>Aktif</option>
                             <option value="nonaktif" <?= $customer['status'] == 'nonaktif' ? 'selected' : '';?>>Non-Aktif</option>
                         </select>
+                    </div>
+                    <hr>
+                    <h6 class="text-primary"><i class="fa fa-bell"></i> Pengaturan Reminder WhatsApp</h6>
+                    <div class="form-group">
+                        <label>Aktifkan Reminder</label>
+                        <select class="form-control" name="reminder_aktif">
+                            <option value="ya" <?= ($customer['reminder_aktif'] ?? 'ya') == 'ya' ? 'selected' : '';?>>Ya</option>
+                            <option value="tidak" <?= ($customer['reminder_aktif'] ?? 'ya') == 'tidak' ? 'selected' : '';?>>Tidak</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Interval Hari (Opsional)</label>
+                        <input type="number" class="form-control" name="reminder_interval" 
+                            value="<?= htmlspecialchars((string)($customer['reminder_interval'] ?? ''), ENT_QUOTES, 'UTF-8');?>"
+                            placeholder="Kosongkan = Pakai Default">
+                        <small class="text-muted">Kosongkan untuk pakai setting global</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Pesan Custom (Opsional)</label>
+                        <textarea class="form-control" name="pesan_custom" rows="3" 
+                            placeholder="Kosongkan untuk pakai template default. Tag: {nama}, {barang}, {toko}, {phone}, {stok}, {harga}"><?= htmlspecialchars($customer['pesan_custom'] ?? '', ENT_QUOTES, 'UTF-8');?></textarea>
+                        <small class="text-muted">Contoh: Halo {nama}, stok {barang} sudah tersedia!</small>
                     </div>
                 </div>
                 <div class="modal-footer">

@@ -91,6 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <option value="">-- Pilih Role --</option>
                     <option value="admin">Admin</option>
                     <option value="Kasir">Kasir</option>
+                    <option value="view">View Only</option>
                 </select>
             </div>
 

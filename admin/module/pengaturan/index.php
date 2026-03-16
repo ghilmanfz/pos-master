@@ -237,6 +237,7 @@ $showSuccess = is_string($successParam) && $successParam !== '';
 
 <script>
 let autoReminderInterval = null;
+let autoTestInterval = null;
 
 function testAPIFonte() {
 	const token = document.getElementById('api_fonte_token').value;
@@ -365,96 +366,6 @@ function toggleAutoReminder(enabled) {
 window.addEventListener('beforeunload', function() {
 	if(autoReminderInterval) {
 		clearInterval(autoReminderInterval);
-	}
-});
-</script>
-
-function testAPIFonte() {
-	const token = document.getElementById('api_fonte_token').value;
-	const phone = document.getElementById('api_fonte_phone').value;
-	const message = document.getElementById('pesan_test').value;
-	const resultDiv = document.getElementById('test-result');
-	
-	if(!token || !phone) {
-		resultDiv.innerHTML = '<div class="alert alert-danger">Harap isi API Token dan Nomor WhatsApp terlebih dahulu!</div>';
-		return;
-	}
-	
-	if(!message || message.trim() === '') {
-		resultDiv.innerHTML = '<div class="alert alert-danger">Harap isi Pesan Test terlebih dahulu!</div>';
-		return;
-	}
-	
-	resultDiv.innerHTML = '<div class="alert alert-info"><i class="fa fa-spinner fa-spin"></i> Mengirim pesan ke nomor testing dan customer...</div>';
-	
-	// Send test message
-	fetch('fungsi/test_api_fonte.php', {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-		},
-		body: JSON.stringify({
-			token: token,
-			phone: phone,
-			message: message,
-			csrf_token: window.csrfToken || ''
-		})
-	})
-	.then(response => response.json())
-	.then(data => {
-		const timestamp = new Date().toLocaleTimeString('id-ID');
-		if(data.success) {
-			let html = '<div class="alert alert-success">';
-			html += '<strong>[' + timestamp + '] ' + data.message + '</strong><br>';
-			if(data.details) {
-				html += '<hr><small>' + data.details + '</small>';
-			}
-			html += '<br><em>Total penerima: ' + (data.total_recipients || 0) + '</em>';
-			html += '</div>';
-			resultDiv.innerHTML = html;
-		} else {
-			let html = '<div class="alert alert-danger">';
-			html += '<strong>[' + timestamp + '] ' + data.message + '</strong>';
-			if(data.details) {
-				html += '<br><small>' + data.details + '</small>';
-			}
-			html += '</div>';
-			resultDiv.innerHTML = html;
-		}
-	})
-	.catch(error => {
-		resultDiv.innerHTML = '<div class="alert alert-danger">Error: ' + error.message + '</div>';
-	});
-}
-
-function toggleAutoTest(enabled) {
-	if(enabled) {
-		// Start auto test
-		const resultDiv = document.getElementById('test-result');
-		resultDiv.innerHTML = '<div class="alert alert-warning"><strong>⏱️ Auto-test aktif!</strong> Mengirim pesan setiap 30 detik...</div>';
-		
-		// Send immediately
-		testAPIFonte();
-		
-		// Then every 30 seconds
-		autoTestInterval = setInterval(function() {
-			testAPIFonte();
-		}, 30000); // 30000ms = 30 detik
-	} else {
-		// Stop auto test
-		if(autoTestInterval) {
-			clearInterval(autoTestInterval);
-			autoTestInterval = null;
-			const resultDiv = document.getElementById('test-result');
-			resultDiv.innerHTML = '<div class="alert alert-secondary">Auto-test dihentikan.</div>';
-		}
-	}
-}
-
-// Stop auto test when leaving page
-window.addEventListener('beforeunload', function() {
-	if(autoTestInterval) {
-		clearInterval(autoTestInterval);
 	}
 });
 </script>
