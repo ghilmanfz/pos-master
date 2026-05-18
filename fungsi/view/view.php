@@ -471,18 +471,45 @@ class view
     // Fungsi untuk Reminder Log
     public function reminder_log()
     {
+        $columns = [];
+        $columnStmt = $this->db->prepare("SHOW COLUMNS FROM reminder_log");
+        if ($columnStmt && $columnStmt->execute()) {
+            $columnRows = $columnStmt->fetchAll();
+            foreach ($columnRows as $columnRow) {
+                if (isset($columnRow['Field'])) {
+                    $columns[] = $columnRow['Field'];
+                }
+            }
+        }
+
+        // Gunakan urutan yang fleksibel agar tetap kompatibel dengan skema lama/baru.
+        $orderParts = [];
+        if (in_array('tanggal_kirim', $columns, true)) {
+            $orderParts[] = 'reminder_log.tanggal_kirim DESC';
+        }
+        if (in_array('id_log', $columns, true)) {
+            $orderParts[] = 'reminder_log.id_log DESC';
+        } elseif (in_array('id', $columns, true)) {
+            $orderParts[] = 'reminder_log.id DESC';
+        }
+        if (count($orderParts) === 0) {
+            $orderParts[] = '1 DESC';
+        }
+
         $sql = "SELECT reminder_log.*, customer.nama_customer, barang.nama_barang 
                 FROM reminder_log 
                 LEFT JOIN customer ON reminder_log.id_customer = customer.id_customer
                 LEFT JOIN barang ON reminder_log.id_barang = barang.id_barang
-                ORDER BY id_log DESC";
+                ORDER BY " . implode(', ', $orderParts);
         $row = $this-> db -> prepare($sql);
         if (!$row) {
             return [];
         }
-        $row -> execute();
+        if (!$row -> execute()) {
+            return [];
+        }
         $hasil = $row -> fetchAll();
-        return $hasil;
+        return is_array($hasil) ? $hasil : [];
     }
 
     // Fungsi untuk Customer Barang (tracking pembelian)
