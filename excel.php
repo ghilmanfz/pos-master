@@ -1,148 +1,152 @@
-<?php 
-    declare(strict_types=1);
-	@ob_start();
-	session_start();
-    if (empty($_SESSION['admin'])) {
-        header('Location: login.php');
-        exit;
-    }
-    header("Content-Type:   application/vnd.ms-excel; charset=utf-8");
-    header("Content-Disposition: attachment; filename=data-laporan-".date('Y-m-d').".xls");  //File name extension was wrong
-    header("Expires: 0");
-    header("Cache-Control: must-revalidate, post-check=0, pre-check=0");
-    header("Cache-Control: private",false); 
+<?php
+declare(strict_types=1);
+@ob_start();
+session_start();
+if (empty($_SESSION['admin'])) {
+    header('Location: login.php');
+    exit;
+}
 
-    require 'config.php';
-    include $view;
-    $lihat = new view($config);
+require 'config.php';
+include $view;
+$lihat = new view($config);
 
-    $bulan_tes =array(
-        '01'=>"Januari",
-        '02'=>"Februari",
-        '03'=>"Maret",
-        '04'=>"April",
-        '05'=>"Mei",
-        '06'=>"Juni",
-        '07'=>"Juli",
-        '08'=>"Agustus",
-        '09'=>"September",
-        '10'=>"Oktober",
-        '11'=>"November",
-        '12'=>"Desember"
-    );
+$bulan_tes = [
+    '01' => 'Januari', '02' => 'Februari', '03' => 'Maret', '04' => 'April',
+    '05' => 'Mei', '06' => 'Juni', '07' => 'Juli', '08' => 'Agustus',
+    '09' => 'September', '10' => 'Oktober', '11' => 'November', '12' => 'Desember'
+];
 
-    $cariParamRaw = filter_input(INPUT_GET, 'cari', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]);
-    $cariParam = is_string($cariParamRaw) ? trim($cariParamRaw) : '';
-    $cariActive = in_array($cariParam, ['yes', 'ok'], true);
+function xls_safe($value): string
+{
+    return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+}
 
-    $hariParamRaw = filter_input(INPUT_GET, 'hari', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]);
-    $hariParam = is_string($hariParamRaw) ? trim($hariParamRaw) : '';
-    $hariActive = ($hariParam === 'cek');
+function rupiah_xls($n): string
+{
+    return 'Rp ' . number_format((float) $n, 0, ',', '.');
+}
 
-    $bulanRaw = filter_input(INPUT_GET, 'bln', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]);
-    $bulanParam = (is_string($bulanRaw) && preg_match('/^(0[1-9]|1[0-2])$/', $bulanRaw)) ? $bulanRaw : '';
+$cariParam = trim((string) (filter_input(INPUT_GET, 'cari', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]) ?? ''));
+$cariActive = in_array($cariParam, ['yes', 'ok'], true);
+$hariActive = trim((string) (filter_input(INPUT_GET, 'hari', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]) ?? '')) === 'cek';
+$dateRangeActive = trim((string) (filter_input(INPUT_GET, 'daterange', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]) ?? '')) === 'cek';
 
-    $tahunRaw = filter_input(INPUT_GET, 'thn', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]);
-    $tahunParam = (is_string($tahunRaw) && preg_match('/^\d{4}$/', $tahunRaw)) ? $tahunRaw : '';
+$bulanRaw = filter_input(INPUT_GET, 'bln', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]);
+$bulanParam = (is_string($bulanRaw) && preg_match('/^(0[1-9]|1[0-2])$/', $bulanRaw)) ? $bulanRaw : '';
+$tahunRaw = filter_input(INPUT_GET, 'thn', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]);
+$tahunParam = (is_string($tahunRaw) && preg_match('/^\d{4}$/', $tahunRaw)) ? $tahunRaw : '';
+$tanggalRaw = filter_input(INPUT_GET, 'tgl', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]);
+$tanggalParam = (is_string($tanggalRaw) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggalRaw)) ? $tanggalRaw : '';
+$dariRaw = filter_input(INPUT_GET, 'dari', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]);
+$dariParam = (is_string($dariRaw) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dariRaw)) ? $dariRaw : '';
+$sampaiRaw = filter_input(INPUT_GET, 'sampai', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]);
+$sampaiParam = (is_string($sampaiRaw) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $sampaiRaw)) ? $sampaiRaw : '';
 
-    $tanggalRaw = filter_input(INPUT_GET, 'tgl', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]);
-    $tanggalParam = (is_string($tanggalRaw) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggalRaw)) ? $tanggalRaw : '';
+if ($cariActive && $bulanParam !== '' && $tahunParam !== '') {
+    $periode = $bulanParam . '-' . $tahunParam;
+    $judulPeriode = ($bulan_tes[$bulanParam] ?? $bulanParam) . ' ' . $tahunParam;
+    $hasil = $lihat->periode_jual($periode);
+} elseif ($dateRangeActive && $dariParam !== '' && $sampaiParam !== '') {
+    $judulPeriode = $dariParam . ' s/d ' . $sampaiParam;
+    $hasil = $lihat->range_jual($dariParam, $sampaiParam);
+} elseif ($hariActive && $tanggalParam !== '') {
+    $judulPeriode = $tanggalParam;
+    $hasil = $lihat->hari_jual($tanggalParam);
+} else {
+    $judulPeriode = ($bulan_tes[date('m')] ?? date('m')) . ' ' . date('Y');
+    $hasil = $lihat->jual();
+}
+
+$filename = 'laporan-penjualan-' . preg_replace('/[^0-9A-Za-z-]+/', '-', $judulPeriode) . '.xls';
+header('Content-Type: application/vnd.ms-excel; charset=utf-8');
+header('Content-Disposition: attachment; filename=' . $filename);
+header('Expires: 0');
+header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
+header('Cache-Control: private', false);
+
+$totalJumlah = 0;
+$totalModal = 0.0;
+$totalPenjualan = 0.0;
+$totalDiskon = 0.0;
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <style>
+        table { border-collapse: collapse; font-family: Arial, sans-serif; font-size: 11pt; }
+        th { background: #0bb365; color: #ffffff; font-weight: bold; text-align: center; border: 1px solid #555; padding: 8px; }
+        td { border: 1px solid #999; padding: 6px; vertical-align: top; }
+        .title { font-size: 16pt; font-weight: bold; text-align: center; background: #e9f7ef; }
+        .subtitle { font-size: 11pt; text-align: center; background: #f8f9fa; }
+        .num { text-align: right; mso-number-format:'\@'; white-space: nowrap; }
+        .center { text-align: center; }
+        .total { font-weight: bold; background: #fff2cc; }
+    </style>
 </head>
 <body>
-        <!-- view barang -->
-    <!-- view barang -->
-    <div class="modal-view">
-        <h3 style="text-align:center;">
-                <?php if($cariActive && $bulanParam !== '' && $tahunParam !== ''){ ?>
-                    Data Laporan Penjualan <?= htmlspecialchars($bulan_tes[$bulanParam] ?? $bulanParam, ENT_QUOTES, 'UTF-8');?> <?= htmlspecialchars($tahunParam, ENT_QUOTES, 'UTF-8');?>
-                <?php }elseif($hariActive && $tanggalParam !== ''){?>
-                    Data Laporan Penjualan <?= htmlspecialchars($tanggalParam, ENT_QUOTES, 'UTF-8');?>
-                <?php }else{?>
-                    Data Laporan Penjualan <?= htmlspecialchars($bulan_tes[date('m')], ENT_QUOTES, 'UTF-8');?> <?= date('Y');?>
-                <?php }?>
-        </h3>
-        <table border="1" width="100%" cellpadding="3" cellspacing="4">
-            <thead>
-                <tr bgcolor="yellow">
-                    <th> No</th>
-                    <th> ID Transaksi</th>
-                    <th> Barang Dibeli</th>
-                    <th style="width:10%;"> Jumlah</th>
-                    <th style="width:10%;"> Modal</th>
-                    <th style="width:10%;"> Total</th>
-                    <th style="width:10%;"> Diskon</th>
-                    <th style="width:10%;"> Bayar</th>
-                    <th style="width:10%;"> Kembalian</th>
-                    <th> Kasir</th>
-                    <th> Customer</th>
-                    <th> Tanggal</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php
-                    $no=1;
-                    if($cariActive && $bulanParam !== '' && $tahunParam !== ''){
-                        $periode = $bulanParam.'-'.$tahunParam;
-                        $jumlah = 0;
-                        $bayar = 0;
-                        $hasil = $lihat->periode_jual($periode);
-                    }elseif($hariActive && $tanggalParam !== ''){
-                        $jumlah = 0;
-                        $bayar = 0;
-                        $hasil = $lihat->hari_jual($tanggalParam);
-                    }else{
-                        $hasil = $lihat->jual();
-                    }
-                ?>
-                <?php 
-                    $bayar = 0;
-                    $jumlah = 0;
-                    $modal = 0;
-                    foreach($hasil as $isi){ 
-                        $bayar += $isi['total'];
-                        $modal += $isi['modal_total'];
-                        $jumlah += $isi['jumlah_total'];
-                        
-                        // Generate ID Transaksi dari id_nota_min
-                        $idTransaksi = 'TRX-' . str_pad((string)$isi['id_nota_min'], 6, '0', STR_PAD_LEFT);
-                ?>
-                <tr>
-                    <td><?php echo $no;?></td>
-                    <td><strong><?= htmlspecialchars($idTransaksi, ENT_QUOTES, 'UTF-8');?></strong></td>
-                    <td><?= htmlspecialchars((string)$isi['barang_list'], ENT_QUOTES, 'UTF-8');?></td>
-                    <td><?= htmlspecialchars((string)$isi['jumlah_total'], ENT_QUOTES, 'UTF-8');?> </td>
-                    <td>Rp <?php echo number_format($isi['modal_total']);?>,-</td>
-                    <td>Rp <?php echo number_format($isi['total']);?>,-</td>
-                    <td>Rp <?php echo number_format((float)$isi['diskon_persen'] + (float)$isi['diskon_nominal']);?>,-</td>
-                    <td>Rp <?php echo number_format((float)$isi['bayar']);?>,-</td>
-                    <td>Rp <?php echo number_format((float)$isi['kembalian']);?>,-</td>
-                    <td><?= htmlspecialchars((string)$isi['nm_member'], ENT_QUOTES, 'UTF-8');?></td>
-                    <td><?= htmlspecialchars((string)($isi['nama_customer'] ?? '-'), ENT_QUOTES, 'UTF-8');?></td>
-                    <td><?= htmlspecialchars((string)$isi['tanggal_input'], ENT_QUOTES, 'UTF-8');?></td>
-                </tr>
-                <?php $no++; }?>
-                <tr>
-                    <td>-</td>
-                    <td>-</td>
-                    <td><b>Total Terjual</b></td>
-                    <td><b><?php echo $jumlah;?></b></td>
-                    <td><b>Rp <?php echo number_format($modal);?>,-</b></td>
-                    <td><b>Rp <?php echo number_format($bayar);?>,-</b></td>
-                    <td><b>-</b></td>
-                    <td colspan="2">-</td>
-                    <td colspan="2"><b>Keuntungan</b></td>
-                    <td><b>
-                        Rp <?php echo number_format($bayar-$modal);?>,-</b></td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
+<table>
+    <tr><td colspan="13" class="title">LAPORAN PENJUALAN</td></tr>
+    <tr><td colspan="13" class="subtitle">Periode: <?= xls_safe($judulPeriode); ?></td></tr>
+    <tr><td colspan="13" class="subtitle">Tanggal Export: <?= xls_safe(date('d/m/Y H:i')); ?></td></tr>
+    <tr><td colspan="13"></td></tr>
+    <tr>
+        <th style="width:40px;">No</th>
+        <th style="width:150px;">Nomor Transaksi</th>
+        <th style="width:280px;">Barang Dibeli</th>
+        <th style="width:80px;">Jumlah</th>
+        <th style="width:120px;">Modal</th>
+        <th style="width:120px;">Total Belanja</th>
+        <th style="width:120px;">Diskon</th>
+        <th style="width:120px;">Bayar</th>
+        <th style="width:120px;">Kembalian</th>
+        <th style="width:140px;">Kasir</th>
+        <th style="width:160px;">Customer/Member</th>
+        <th style="width:160px;">Tanggal</th>
+        <th style="width:150px;">Poin</th>
+    </tr>
+    <?php $no = 1; foreach ($hasil as $isi):
+        $jumlah = (int) ($isi['jumlah_total'] ?? 0);
+        $modal = (float) ($isi['modal_total'] ?? 0);
+        $penjualan = (float) ($isi['total'] ?? 0);
+        $diskon = (float) ($isi['diskon_nominal'] ?? 0);
+        $totalJumlah += $jumlah;
+        $totalModal += $modal;
+        $totalPenjualan += $penjualan;
+        $totalDiskon += $diskon;
+        $idNotaMin = $isi['id_nota_min'] ?? 0;
+        $noTransaksi = !empty($isi['no_transaksi']) ? $isi['no_transaksi'] : ('TRX-' . str_pad((string) $idNotaMin, 6, '0', STR_PAD_LEFT));
+        $poinInfo = '-';
+        if (!empty($isi['poin_didapat']) || !empty($isi['poin_digunakan']) || !empty($isi['poin_akhir'])) {
+            $poinInfo = 'Dapat: ' . (int)($isi['poin_didapat'] ?? 0) . ', Pakai: ' . (int)($isi['poin_digunakan'] ?? 0) . ', Akhir: ' . (int)($isi['poin_akhir'] ?? 0);
+        }
+    ?>
+    <tr>
+        <td class="center"><?= $no++; ?></td>
+        <td><?= xls_safe($noTransaksi); ?></td>
+        <td><?= xls_safe($isi['barang_list'] ?? ''); ?></td>
+        <td class="center"><?= xls_safe($jumlah); ?></td>
+        <td class="num"><?= xls_safe(rupiah_xls($modal)); ?></td>
+        <td class="num"><?= xls_safe(rupiah_xls($penjualan)); ?></td>
+        <td class="num"><?= xls_safe(rupiah_xls($diskon)); ?></td>
+        <td class="num"><?= xls_safe(rupiah_xls($isi['bayar'] ?? 0)); ?></td>
+        <td class="num"><?= xls_safe(rupiah_xls($isi['kembalian'] ?? 0)); ?></td>
+        <td><?= xls_safe($isi['nm_member'] ?? ''); ?></td>
+        <td><?= xls_safe($isi['nama_customer'] ?? '-'); ?></td>
+        <td><?= xls_safe($isi['tanggal_input'] ?? ''); ?></td>
+        <td><?= xls_safe($poinInfo); ?></td>
+    </tr>
+    <?php endforeach; ?>
+    <tr class="total">
+        <td colspan="3" class="center">TOTAL</td>
+        <td class="center"><?= xls_safe($totalJumlah); ?></td>
+        <td class="num"><?= xls_safe(rupiah_xls($totalModal)); ?></td>
+        <td class="num"><?= xls_safe(rupiah_xls($totalPenjualan)); ?></td>
+        <td class="num"><?= xls_safe(rupiah_xls($totalDiskon)); ?></td>
+        <td colspan="3" class="center">Keuntungan</td>
+        <td colspan="3" class="num"><?= xls_safe(rupiah_xls($totalPenjualan - $totalModal)); ?></td>
+    </tr>
+</table>
 </body>
 </html>

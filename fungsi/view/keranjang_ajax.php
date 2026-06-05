@@ -25,6 +25,10 @@ if (!empty($_SESSION['admin'])) {
         
         $total_bayar = 0;
         $no = 1;
+        $stmtToko = $config->prepare("SELECT diskon_member_persen FROM toko WHERE id_toko = '1' LIMIT 1");
+        $stmtToko->execute();
+        $tokoAjax = $stmtToko->fetch();
+        $diskonMemberPersenAktif = isset($tokoAjax['diskon_member_persen']) ? (float)$tokoAjax['diskon_member_persen'] : 2.0;
         
         // Start output buffering untuk HTML
         ob_start();
@@ -115,7 +119,7 @@ if (!empty($_SESSION['admin'])) {
                         <input type="hidden" name="total" id="total_semua" value="<?= htmlspecialchars((string) $total_bayar, ENT_QUOTES, 'UTF-8');?>"></td>
                     </tr>
                     <tr id="diskon-member-row" style="display:none;">
-                        <td><strong>Diskon Member (2%)</strong></td>
+                        <td><strong>Diskon Member (<?= htmlspecialchars((string)$diskonMemberPersenAktif, ENT_QUOTES, 'UTF-8');?>%)</strong></td>
                         <td>
                             <input type="text" class="form-control" id="diskon_member" value="Rp 0" readonly style="font-weight: bold; color: #28a745;">
                         </td>
@@ -124,6 +128,13 @@ if (!empty($_SESSION['admin'])) {
                         <td><strong>Diskon Poin</strong></td>
                         <td>
                             <input type="text" class="form-control" id="diskon_poin" value="Rp 0" readonly style="font-weight: bold; color: #28a745;">
+                        </td>
+                    </tr>
+                    <tr id="estimasi-poin-row" style="display:none;">
+                        <td><strong>Estimasi Poin</strong></td>
+                        <td>
+                            <input type="text" class="form-control" id="estimasi_poin" value="0 poin" readonly style="font-weight: bold; color: #007bff;">
+                            <small class="text-muted">Poin final dihitung setelah transaksi berhasil.</small>
                         </td>
                     </tr>
                     <tr>

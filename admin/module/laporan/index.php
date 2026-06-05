@@ -23,30 +23,36 @@
         $hariParamRaw = filter_input(INPUT_GET, 'hari', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]);
         $hariActive = ($hariParamRaw === 'cek');
 
-        $bulanPostRaw = filter_input(INPUT_POST, 'bln', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]);
+        $bulanPostRaw = filter_input(INPUT_GET, 'bln', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]);
+        if ($bulanPostRaw === null) { $bulanPostRaw = filter_input(INPUT_POST, 'bln', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]); }
         $bulanPost = (is_string($bulanPostRaw) && preg_match('/^(0[1-9]|1[0-2])$/', $bulanPostRaw)) ? $bulanPostRaw : '';
 
-        $tahunPostRaw = filter_input(INPUT_POST, 'thn', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]);
+        $tahunPostRaw = filter_input(INPUT_GET, 'thn', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]);
+        if ($tahunPostRaw === null) { $tahunPostRaw = filter_input(INPUT_POST, 'thn', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]); }
         $tahunPost = (is_string($tahunPostRaw) && preg_match('/^\d{4}$/', $tahunPostRaw)) ? $tahunPostRaw : '';
 
-        $hariPostRaw = filter_input(INPUT_POST, 'hari', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]);
+        $hariPostRaw = filter_input(INPUT_GET, 'tgl', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]);
+        if ($hariPostRaw === null) { $hariPostRaw = filter_input(INPUT_POST, 'hari', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]); }
         $hariPost = is_string($hariPostRaw) ? trim($hariPostRaw) : '';
 
         // Date Range
         $dateRangeParamRaw = filter_input(INPUT_GET, 'daterange', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]);
         $dateRangeActive = ($dateRangeParamRaw === 'cek');
 
-        $dariPostRaw = filter_input(INPUT_POST, 'dari', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]);
+        $dariPostRaw = filter_input(INPUT_GET, 'dari', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]);
+        if ($dariPostRaw === null) { $dariPostRaw = filter_input(INPUT_POST, 'dari', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]); }
         $dariPost = (is_string($dariPostRaw) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dariPostRaw)) ? $dariPostRaw : '';
 
-        $sampaiPostRaw = filter_input(INPUT_POST, 'sampai', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]);
+        $sampaiPostRaw = filter_input(INPUT_GET, 'sampai', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]);
+        if ($sampaiPostRaw === null) { $sampaiPostRaw = filter_input(INPUT_POST, 'sampai', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]); }
         $sampaiPost = (is_string($sampaiPostRaw) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $sampaiPostRaw)) ? $sampaiPostRaw : '';
 
         // Day of Week Filter
         $dayofweekParamRaw = filter_input(INPUT_GET, 'dayofweek', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]);
         $dayofweekActive = ($dayofweekParamRaw === 'cek');
 
-        $dayPost = filter_input(INPUT_POST, 'day', FILTER_VALIDATE_INT);
+        $dayPost = filter_input(INPUT_GET, 'day', FILTER_VALIDATE_INT);
+        if ($dayPost === null) { $dayPost = filter_input(INPUT_POST, 'day', FILTER_VALIDATE_INT); }
         $dayPost = ($dayPost !== null && $dayPost !== false && $dayPost >= 1 && $dayPost <= 7) ? $dayPost : '';
 ?>
 <style>
@@ -96,8 +102,9 @@
 				<h5 class="card-title mt-2">Cari Laporan Per Bulan</h5>
 			</div>
 			<div class="card-body p-0">
-                                <form method="post" action="index.php?page=laporan&cari=ok">
-                                        <?php echo csrf_field(); ?>
+                                <form method="get" action="index.php">
+                                        <input type="hidden" name="page" value="laporan">
+                                        <input type="hidden" name="cari" value="ok">
 					<table class="table table-striped">
 						<tr>
 							<th>
@@ -113,14 +120,15 @@
 						<tr>
 							<td>
 								<select name="bln" class="form-control">
-									<option selected="selected">Bulan</option>
+									<option value="">Bulan</option>
 									<?php
 								$bulan=array("Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember");
 								$jlh_bln=count($bulan);
 								$bln1 = array('01','02','03','04','05','06','07','08','09','10','11','12');
 								$no=1;
 								for($c=0; $c<$jlh_bln; $c+=1){
-									echo"<option value='$bln1[$c]'> $bulan[$c] </option>";
+									$selected = ($bulanPost === $bln1[$c]) ? ' selected' : '';
+							echo "<option value='{$bln1[$c]}'{$selected}> {$bulan[$c]} </option>";
 								$no++;}
 							?>
 								</select>
@@ -129,11 +137,11 @@
 							<?php
 								$now=date('Y');
 								echo "<select name='thn' class='form-control'>";
-								echo '
-								<option selected="selected">Tahun</option>';
+							echo '<option value="">Tahun</option>';
 								for ($a=2017;$a<=$now;$a++)
 								{
-									echo "<option value='$a'>$a</option>";
+									$selected = ($tahunPost === (string)$a) ? ' selected' : '';
+		echo "<option value='$a'$selected>$a</option>";
 								}
 								echo "</select>";
 							?>
@@ -158,8 +166,9 @@
 						</tr>
 					</table>
 				</form>
-                                <form method="post" action="index.php?page=laporan&hari=cek">
-                                        <?php echo csrf_field(); ?>
+                                <form method="get" action="index.php">
+                                        <input type="hidden" name="page" value="laporan">
+                                        <input type="hidden" name="hari" value="cek">
 					<table class="table table-striped">
 						<tr>
 							<th>
@@ -171,7 +180,7 @@
 						</tr>
 						<tr>
 							<td>
-								<input type="date" value="<?= date('Y-m-d');?>" class="form-control" name="hari">
+								<input type="date" value="<?= htmlspecialchars($hariPost !== '' ? $hariPost : date('Y-m-d'), ENT_QUOTES, 'UTF-8');?>" class="form-control" name="tgl">
 							</td>
 							<td>
 								<input type="hidden" name="periode" value="ya">
@@ -194,8 +203,9 @@
 					</table>
 				</form>
 				<!-- Form Date Range -->
-				<form method="post" action="index.php?page=laporan&daterange=cek">
-					<?php echo csrf_field(); ?>
+				<form method="get" action="index.php">
+					<input type="hidden" name="page" value="laporan">
+					<input type="hidden" name="daterange" value="cek">
 					<table class="table table-striped">
 						<tr>
 							<th>Pilih Rentang Tanggal</th>
@@ -206,11 +216,11 @@
 								<div class="row">
 									<div class="col-md-5">
 										<label>Dari Tanggal</label>
-										<input type="date" value="<?= date('Y-m-d', strtotime('-7 days'));?>" class="form-control" name="dari" required>
+										<input type="date" value="<?= htmlspecialchars($dariPost !== '' ? $dariPost : date('Y-m-d', strtotime('-7 days')), ENT_QUOTES, 'UTF-8');?>" class="form-control" name="dari" required>
 									</div>
 									<div class="col-md-5">
 										<label>Sampai Tanggal</label>
-										<input type="date" value="<?= date('Y-m-d');?>" class="form-control" name="sampai" required>
+										<input type="date" value="<?= htmlspecialchars($sampaiPost !== '' ? $sampaiPost : date('Y-m-d'), ENT_QUOTES, 'UTF-8');?>" class="form-control" name="sampai" required>
 									</div>
 									<div class="col-md-2">
 										<label>&nbsp;</label>
@@ -332,7 +342,9 @@
 									// Generate ID Transaksi dari id_nota_min
 									$idNotaMin = isset($isi['id_nota_min']) ? $isi['id_nota_min'] : (isset($isi['id_nota']) ? $isi['id_nota'] : 0);
 									$idNotaMax = isset($isi['id_nota_max']) ? $isi['id_nota_max'] : $idNotaMin;
-								$idTransaksi = 'TRX-' . str_pad((string)$idNotaMin, 6, '0', STR_PAD_LEFT);
+								$idTransaksi = !empty($isi['no_transaksi']) ? $isi['no_transaksi'] : ('TRX-' . str_pad((string)$idNotaMin, 6, '0', STR_PAD_LEFT));
+									$noTransaksiEnc = urlencode($idTransaksi);
+									$tanggalEnc = urlencode($isi['tanggal_input'] ?? '');
 									$idMemberEnc = urlencode($isi['id_member']);
 									$idCustomerEnc = urlencode($isi['id_customer'] ?? '0');
 									$idNotaMinEnc = urlencode($idNotaMin);
@@ -344,13 +356,13 @@
 								<td><?= htmlspecialchars($isi['barang_list'], ENT_QUOTES, 'UTF-8');?></td>
 								<td><?= htmlspecialchars($isi['jumlah_total'], ENT_QUOTES, 'UTF-8');?> </td>
 								<td>Rp <?php echo number_format($isi['modal_total']);?>,-</td>
-								<td>Rp <?php echo number_format($isi['total']);?>,-</td>						<td>Rp <?php echo number_format((float)$isi['diskon_persen'] + (float)$isi['diskon_nominal']);?>,-</td>								<td>Rp <?php echo number_format((float)$isi['bayar']);?>,-</td>
+								<td>Rp <?php echo number_format($isi['total']);?>,-</td>						<td>Rp <?php echo number_format((float)$isi['diskon_nominal']);?>,-</td>								<td>Rp <?php echo number_format((float)$isi['bayar']);?>,-</td>
 								<td>Rp <?php echo number_format((float)$isi['kembalian']);?>,-</td>
 								<td><?= htmlspecialchars($isi['nm_member'], ENT_QUOTES, 'UTF-8');?></td>
 								<td><?= htmlspecialchars($isi['nama_customer'] ?? '-', ENT_QUOTES, 'UTF-8');?></td>
 								<td><?= htmlspecialchars($isi['tanggal_input'], ENT_QUOTES, 'UTF-8');?></td>
 								<td>
-									<a href="print_laporan.php?tanggal=<?= $tanggalEnc;?>&id_member=<?= $idMemberEnc;?>&id_customer=<?= $idCustomerEnc;?>&id_nota_min=<?= $idNotaMinEnc;?>&id_nota_max=<?= $idNotaMaxEnc;?>" 
+									<a href="print_laporan.php?no_transaksi=<?= $noTransaksiEnc;?>&tanggal=<?= $tanggalEnc;?>&id_member=<?= $idMemberEnc;?>&id_customer=<?= $idCustomerEnc;?>&id_nota_min=<?= $idNotaMinEnc;?>&id_nota_max=<?= $idNotaMaxEnc;?>" 
 									   target="_blank" 
 									   class="btn btn-primary btn-sm no-print"
 									   title="Print Transaksi <?= htmlspecialchars($idTransaksi, ENT_QUOTES, 'UTF-8');?>">

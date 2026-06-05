@@ -180,9 +180,15 @@ class view
     public function jual()
     {
         $sql ="SELECT MIN(nota.id_nota) as id_nota_min, MAX(nota.id_nota) as id_nota_max,
+                COALESCE(NULLIF(nota.no_transaksi, ''), CONCAT('TRX-', LPAD(MIN(nota.id_nota), 6, '0'))) as no_transaksi,
                 nota.tanggal_input, nota.periode, nota.id_member, nota.id_customer,
                 COALESCE(MAX(nota.diskon_persen), 0) as diskon_persen, 
                 COALESCE(MAX(nota.diskon_nominal), 0) as diskon_nominal,
+                COALESCE(MAX(nota.diskon_member_nominal), 0) as diskon_member_nominal,
+                COALESCE(MAX(nota.diskon_poin_nominal), 0) as diskon_poin_nominal,
+                COALESCE(MAX(nota.poin_digunakan), 0) as poin_digunakan,
+                COALESCE(MAX(nota.poin_didapat), 0) as poin_didapat,
+                COALESCE(MAX(nota.poin_akhir), 0) as poin_akhir,
                 COALESCE(MAX(nota.bayar), 0) as bayar,
                 COALESCE(MAX(nota.kembalian), 0) as kembalian,
                 GROUP_CONCAT(CONCAT(barang.nama_barang, ' (', nota.jumlah, ' ', barang.satuan_barang, ')') SEPARATOR ', ') as barang_list,
@@ -197,7 +203,7 @@ class view
                 LEFT JOIN member ON member.id_member=nota.id_member 
                 LEFT JOIN customer ON customer.id_customer=nota.id_customer
                 WHERE nota.periode = ?
-                GROUP BY nota.tanggal_input, nota.id_member, nota.id_customer
+                GROUP BY COALESCE(NULLIF(nota.no_transaksi, ''), CONCAT(nota.tanggal_input, '|', nota.id_member, '|', COALESCE(nota.id_customer, 0)))
                 ORDER BY MIN(nota.id_nota) DESC";
         $row = $this-> db -> prepare($sql);
         $row -> execute(array(date('m-Y')));
@@ -208,9 +214,15 @@ class view
     public function periode_jual($periode)
     {
         $sql ="SELECT MIN(nota.id_nota) as id_nota_min, MAX(nota.id_nota) as id_nota_max,
+                COALESCE(NULLIF(nota.no_transaksi, ''), CONCAT('TRX-', LPAD(MIN(nota.id_nota), 6, '0'))) as no_transaksi,
                 nota.tanggal_input, nota.periode, nota.id_member, nota.id_customer,
                 COALESCE(MAX(nota.diskon_persen), 0) as diskon_persen, 
                 COALESCE(MAX(nota.diskon_nominal), 0) as diskon_nominal,
+                COALESCE(MAX(nota.diskon_member_nominal), 0) as diskon_member_nominal,
+                COALESCE(MAX(nota.diskon_poin_nominal), 0) as diskon_poin_nominal,
+                COALESCE(MAX(nota.poin_digunakan), 0) as poin_digunakan,
+                COALESCE(MAX(nota.poin_didapat), 0) as poin_didapat,
+                COALESCE(MAX(nota.poin_akhir), 0) as poin_akhir,
                 COALESCE(MAX(nota.bayar), 0) as bayar,
                 COALESCE(MAX(nota.kembalian), 0) as kembalian,
                 GROUP_CONCAT(CONCAT(barang.nama_barang, ' (', nota.jumlah, ' ', barang.satuan_barang, ')') SEPARATOR ', ') as barang_list,
@@ -225,7 +237,7 @@ class view
                 LEFT JOIN member ON member.id_member=nota.id_member 
                 LEFT JOIN customer ON customer.id_customer=nota.id_customer
                 WHERE nota.periode = ?
-                GROUP BY nota.tanggal_input, nota.id_member, nota.id_customer
+                GROUP BY COALESCE(NULLIF(nota.no_transaksi, ''), CONCAT(nota.tanggal_input, '|', nota.id_member, '|', COALESCE(nota.id_customer, 0)))
                 ORDER BY MIN(nota.id_nota) ASC";
         $row = $this-> db -> prepare($sql);
         $row -> execute(array($periode));
@@ -235,21 +247,16 @@ class view
 
     public function hari_jual($hari)
     {
-        $ex = explode('-', $hari);
-        $monthNum  = $ex[1];
-        $monthName = date('F', mktime(0, 0, 0, $monthNum, 10));
-        if ($ex[2] > 9) {
-            $tgl = $ex[2];
-        } else {
-            $tgl1 = explode('0', $ex[2]);
-            $tgl = $tgl1[1];
-        }
-        $cek = $tgl.' '.$monthName.' '.$ex[0];
-        $param = "%{$cek}%";
         $sql ="SELECT MIN(nota.id_nota) as id_nota_min, MAX(nota.id_nota) as id_nota_max,
+                COALESCE(NULLIF(nota.no_transaksi, ''), CONCAT('TRX-', LPAD(MIN(nota.id_nota), 6, '0'))) as no_transaksi,
                 nota.tanggal_input, nota.periode, nota.id_member, nota.id_customer,
                 COALESCE(MAX(nota.diskon_persen), 0) as diskon_persen, 
                 COALESCE(MAX(nota.diskon_nominal), 0) as diskon_nominal,
+                COALESCE(MAX(nota.diskon_member_nominal), 0) as diskon_member_nominal,
+                COALESCE(MAX(nota.diskon_poin_nominal), 0) as diskon_poin_nominal,
+                COALESCE(MAX(nota.poin_digunakan), 0) as poin_digunakan,
+                COALESCE(MAX(nota.poin_didapat), 0) as poin_didapat,
+                COALESCE(MAX(nota.poin_akhir), 0) as poin_akhir,
                 COALESCE(MAX(nota.bayar), 0) as bayar,
                 COALESCE(MAX(nota.kembalian), 0) as kembalian,
                 GROUP_CONCAT(CONCAT(barang.nama_barang, ' (', nota.jumlah, ' ', barang.satuan_barang, ')') SEPARATOR ', ') as barang_list,
@@ -263,44 +270,27 @@ class view
                 LEFT JOIN barang ON barang.id_barang=nota.id_barang 
                 LEFT JOIN member ON member.id_member=nota.id_member 
                 LEFT JOIN customer ON customer.id_customer=nota.id_customer
-                WHERE nota.tanggal_input LIKE ?
-                GROUP BY nota.tanggal_input, nota.id_member, nota.id_customer
+                WHERE DATE(STR_TO_DATE(nota.tanggal_input, '%d %M %Y, %H:%i')) = ?
+                GROUP BY COALESCE(NULLIF(nota.no_transaksi, ''), CONCAT(nota.tanggal_input, '|', nota.id_member, '|', COALESCE(nota.id_customer, 0)))
                 ORDER BY MIN(nota.id_nota) ASC";
         $row = $this-> db -> prepare($sql);
-        $row -> execute(array($param));
+        $row -> execute(array($hari));
         $hasil = $row -> fetchAll();
         return $hasil;
     }
 
     public function range_jual($dari, $sampai)
     {
-        // Convert dates to timestamps
-        $dariTime = strtotime($dari);
-        $sampaiTime = strtotime($sampai);
-        
-        // Build array of dates in range with LIKE patterns (format: "DD Month YYYY")
-        $dates = [];
-        for ($time = $dariTime; $time <= $sampaiTime; $time += 86400) {
-            $ex = explode('-', date('Y-m-d', $time));
-            $monthNum = $ex[1];
-            $monthName = date('F', mktime(0, 0, 0, $monthNum, 10));
-            $tgl = (int)$ex[2];  // Remove leading zero
-            $dates[] = $tgl.' '.$monthName.' '.$ex[0];
-        }
-        
-        // Build WHERE clause with multiple LIKE conditions (OR)
-        $whereClauses = [];
-        $params = [];
-        foreach ($dates as $dateStr) {
-            $whereClauses[] = "nota.tanggal_input LIKE ?";
-            $params[] = "%{$dateStr}%";
-        }
-        $whereSQL = '(' . implode(' OR ', $whereClauses) . ')';
-        
         $sql ="SELECT MIN(nota.id_nota) as id_nota_min, MAX(nota.id_nota) as id_nota_max,
+                COALESCE(NULLIF(nota.no_transaksi, ''), CONCAT('TRX-', LPAD(MIN(nota.id_nota), 6, '0'))) as no_transaksi,
                 nota.tanggal_input, nota.periode, nota.id_member, nota.id_customer,
                 COALESCE(MAX(nota.diskon_persen), 0) as diskon_persen, 
                 COALESCE(MAX(nota.diskon_nominal), 0) as diskon_nominal,
+                COALESCE(MAX(nota.diskon_member_nominal), 0) as diskon_member_nominal,
+                COALESCE(MAX(nota.diskon_poin_nominal), 0) as diskon_poin_nominal,
+                COALESCE(MAX(nota.poin_digunakan), 0) as poin_digunakan,
+                COALESCE(MAX(nota.poin_didapat), 0) as poin_didapat,
+                COALESCE(MAX(nota.poin_akhir), 0) as poin_akhir,
                 COALESCE(MAX(nota.bayar), 0) as bayar,
                 COALESCE(MAX(nota.kembalian), 0) as kembalian,
                 GROUP_CONCAT(CONCAT(barang.nama_barang, ' (', nota.jumlah, ' ', barang.satuan_barang, ')') SEPARATOR ', ') as barang_list,
@@ -314,11 +304,11 @@ class view
                 LEFT JOIN barang ON barang.id_barang=nota.id_barang 
                 LEFT JOIN member ON member.id_member=nota.id_member 
                 LEFT JOIN customer ON customer.id_customer=nota.id_customer
-                WHERE ".$whereSQL."
-                GROUP BY nota.tanggal_input, nota.id_member, nota.id_customer
+                WHERE DATE(STR_TO_DATE(nota.tanggal_input, '%d %M %Y, %H:%i')) BETWEEN ? AND ?
+                GROUP BY COALESCE(NULLIF(nota.no_transaksi, ''), CONCAT(nota.tanggal_input, '|', nota.id_member, '|', COALESCE(nota.id_customer, 0)))
                 ORDER BY MIN(nota.id_nota) DESC";
         $row = $this-> db -> prepare($sql);
-        $row -> execute($params);
+        $row -> execute(array($dari, $sampai));
         $hasil = $row -> fetchAll();
         return $hasil;
     }
@@ -329,9 +319,15 @@ class view
         $mysqlDay = ($dayOfWeek % 7) == 0 ? 1 : ($dayOfWeek + 1);
         
         $sql ="SELECT MIN(nota.id_nota) as id_nota_min, MAX(nota.id_nota) as id_nota_max,
+                COALESCE(NULLIF(nota.no_transaksi, ''), CONCAT('TRX-', LPAD(MIN(nota.id_nota), 6, '0'))) as no_transaksi,
                 nota.tanggal_input, nota.periode, nota.id_member, nota.id_customer,
                 COALESCE(MAX(nota.diskon_persen), 0) as diskon_persen, 
                 COALESCE(MAX(nota.diskon_nominal), 0) as diskon_nominal,
+                COALESCE(MAX(nota.diskon_member_nominal), 0) as diskon_member_nominal,
+                COALESCE(MAX(nota.diskon_poin_nominal), 0) as diskon_poin_nominal,
+                COALESCE(MAX(nota.poin_digunakan), 0) as poin_digunakan,
+                COALESCE(MAX(nota.poin_didapat), 0) as poin_didapat,
+                COALESCE(MAX(nota.poin_akhir), 0) as poin_akhir,
                 COALESCE(MAX(nota.bayar), 0) as bayar,
                 COALESCE(MAX(nota.kembalian), 0) as kembalian,
                 GROUP_CONCAT(CONCAT(barang.nama_barang, ' (', nota.jumlah, ' ', barang.satuan_barang, ')') SEPARATOR ', ') as barang_list,
@@ -345,8 +341,8 @@ class view
                 LEFT JOIN barang ON barang.id_barang=nota.id_barang 
                 LEFT JOIN member ON member.id_member=nota.id_member 
                 LEFT JOIN customer ON customer.id_customer=nota.id_customer
-                WHERE DAYOFWEEK(nota.tanggal_input) = ?
-                GROUP BY nota.tanggal_input, nota.id_member, nota.id_customer
+                WHERE DAYOFWEEK(STR_TO_DATE(nota.tanggal_input, '%d %M %Y, %H:%i')) = ?
+                GROUP BY COALESCE(NULLIF(nota.no_transaksi, ''), CONCAT(nota.tanggal_input, '|', nota.id_member, '|', COALESCE(nota.id_customer, 0)))
                 ORDER BY MIN(nota.id_nota) DESC";
         $row = $this-> db -> prepare($sql);
         $row -> execute(array($mysqlDay));

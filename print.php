@@ -17,210 +17,151 @@ include $view;
 
 $lihat = new view($config);
 $toko  = $lihat->toko();
-$hsl   = $lihat->penjualan();
-$hasil = $lihat->jumlah();
 
 function rupiah(float $n): string {
     return 'Rp ' . number_format($n, 0, ',', '.');
 }
 
-$nmMember       = (string) filter_input(INPUT_GET, 'nm_member', FILTER_UNSAFE_RAW, FILTER_FLAG_STRIP_LOW);
-$kasir          = htmlspecialchars($nmMember, ENT_QUOTES, 'UTF-8');
+$noTransaksiRaw = filter_input(INPUT_GET, 'no_transaksi', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]);
+$noTransaksi = is_string($noTransaksiRaw) ? trim($noTransaksiRaw) : '';
 
-$bayarInput     = filter_input(INPUT_GET, 'bayar', FILTER_VALIDATE_FLOAT);
-$kembaliInput   = filter_input(INPUT_GET, 'kembali', FILTER_VALIDATE_FLOAT);
-$bayarNominal   = ($bayarInput !== false && $bayarInput !== null) ? (float) $bayarInput : 0.0;
-$kembaliNominal = ($kembaliInput !== false && $kembaliInput !== null) ? (float) $kembaliInput : 0.0;
+$items = [];
+if ($noTransaksi !== '') {
+    $stmt = $config->prepare("SELECT nota.*, barang.nama_barang, barang.satuan_barang, barang.harga_jual, member.nm_member, customer.nama_customer
+        FROM nota
+        LEFT JOIN barang ON barang.id_barang = nota.id_barang
+        LEFT JOIN member ON member.id_member = nota.id_member
+        LEFT JOIN customer ON customer.id_customer = nota.id_customer
+        WHERE nota.no_transaksi = ?
+        ORDER BY nota.id_nota ASC");
+    $stmt->execute([$noTransaksi]);
+    $items = $stmt->fetchAll();
+}
 
-$diskonPersenInput = filter_input(INPUT_GET, 'diskon_persen', FILTER_VALIDATE_FLOAT);
-$diskonNominalInput = filter_input(INPUT_GET, 'diskon_nominal', FILTER_VALIDATE_FLOAT);
-$totalBelanjaInput = filter_input(INPUT_GET, 'total_belanja', FILTER_VALIDATE_FLOAT);
-$totalAkhirInput = filter_input(INPUT_GET, 'total_akhir', FILTER_VALIDATE_FLOAT);
+// Fallback untuk link lama: cetak dari keranjang yang belum dihapus.
+if (empty($items)) {
+    $stmt = $config->prepare("SELECT penjualan.*, barang.nama_barang, barang.satuan_barang, barang.harga_jual, member.nm_member, NULL as nama_customer
+        FROM penjualan
+        LEFT JOIN barang ON barang.id_barang = penjualan.id_barang
+        LEFT JOIN member ON member.id_member = penjualan.id_member
+        ORDER BY penjualan.id_penjualan ASC");
+    $stmt->execute();
+    $items = $stmt->fetchAll();
+}
 
-$diskonPersen = ($diskonPersenInput !== false && $diskonPersenInput !== null) ? (float) $diskonPersenInput : 0.0;
-$diskonNominal = ($diskonNominalInput !== false && $diskonNominalInput !== null) ? (float) $diskonNominalInput : 0.0;
-$totalBelanja = ($totalBelanjaInput !== false && $totalBelanjaInput !== null) ? (float) $totalBelanjaInput : 0.0;
-$totalAkhir = ($totalAkhirInput !== false && $totalAkhirInput !== null) ? (float) $totalAkhirInput : 0.0;
+$nmMember = (string) filter_input(INPUT_GET, 'nm_member', FILTER_UNSAFE_RAW, FILTER_FLAG_STRIP_LOW);
+$bayarInput = filter_input(INPUT_GET, 'bayar', FILTER_VALIDATE_FLOAT);
+$kembaliInput = filter_input(INPUT_GET, 'kembali', FILTER_VALIDATE_FLOAT);
 
-$totalBayar = isset($hasil['bayar']) ? (float) $hasil['bayar'] : 0.0;
+$totalBelanja = 0.0;
+foreach ($items as $item) {
+    $totalBelanja += (float)($item['total'] ?? 0);
+}
+
+$first = $items[0] ?? [];
+$kasir = htmlspecialchars((string)($first['nm_member'] ?? $nmMember ?: '-'), ENT_QUOTES, 'UTF-8');
+$customer = htmlspecialchars((string)($first['nama_customer'] ?? '-'), ENT_QUOTES, 'UTF-8');
+$tanggal = htmlspecialchars((string)($first['tanggal_input'] ?? date('j F Y, G:i')), ENT_QUOTES, 'UTF-8');
+$noTransaksiDisplay = htmlspecialchars((string)($first['no_transaksi'] ?? ($noTransaksi ?: '-')), ENT_QUOTES, 'UTF-8');
+
+$diskonPersen = (float)($first['diskon_persen'] ?? (filter_input(INPUT_GET, 'diskon_persen', FILTER_VALIDATE_FLOAT) ?: 0));
+$diskonNominal = (float)($first['diskon_nominal'] ?? (filter_input(INPUT_GET, 'diskon_nominal', FILTER_VALIDATE_FLOAT) ?: 0));
+$diskonMemberNominal = (float)($first['diskon_member_nominal'] ?? (filter_input(INPUT_GET, 'diskon_member_nominal', FILTER_VALIDATE_FLOAT) ?: 0));
+$diskonPoinNominal = (float)($first['diskon_poin_nominal'] ?? (filter_input(INPUT_GET, 'diskon_poin_nominal', FILTER_VALIDATE_FLOAT) ?: 0));
+$poinDigunakan = (int)($first['poin_digunakan'] ?? (filter_input(INPUT_GET, 'poin_digunakan', FILTER_VALIDATE_INT) ?: 0));
+$poinDidapat = (int)($first['poin_didapat'] ?? (filter_input(INPUT_GET, 'poin_didapat', FILTER_VALIDATE_INT) ?: 0));
+$poinAkhir = (int)($first['poin_akhir'] ?? (filter_input(INPUT_GET, 'poin_akhir', FILTER_VALIDATE_INT) ?: 0));
+$bayarNominal = (float)($first['bayar'] ?? (($bayarInput !== false && $bayarInput !== null) ? $bayarInput : 0));
+$kembaliNominal = (float)($first['kembalian'] ?? (($kembaliInput !== false && $kembaliInput !== null) ? $kembaliInput : 0));
+$totalAkhir = $totalBelanja - $diskonNominal;
+if (isset($first['total_akhir']) && count($items) === 1) {
+    $totalAkhir = (float)$first['total_akhir'];
+}
+if ($totalAkhir < 0) $totalAkhir = 0.0;
 ?>
 <!DOCTYPE html>
 <html lang="id">
-
 <head>
     <meta charset="UTF-8" />
-    <title>Struk Pembelian</title>
+    <title>Struk Pembelian <?= $noTransaksiDisplay; ?></title>
     <style>
-    @page {
-        margin: 2mm;
-        /* biar ada ruang tipis di kiri/kanan */
-    }
-
-    html,
-    body {
-        margin: 0;
-        padding: 0;
-        background: #fff;
-        font-family: "Courier New", Courier, monospace;
-        font-size: 12px;
-        color: #000;
-    }
-
-    .receipt {
-        width: 100%;
-        /* penuh, fleksibel */
-        margin: 0 auto;
-    }
-
-    .center {
-        text-align: center;
-    }
-
-    .sep {
-        border-top: 1px dashed #000;
-        margin: 6px 0;
-    }
-
-    table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-    th,
-    td {
-        text-align: left;
-        padding: 2px 0;
-        vertical-align: top;
-    }
-
-    thead th {
-        border-bottom: 1px dashed #000;
-        font-weight: bold;
-    }
-
-    .ta-r {
-        text-align: right;
-    }
-
-    .item-sep td {
-        border-bottom: 1px dashed #000;
-        padding-top: 4px;
-    }
-
-    .totals .row {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        margin: 2px 0;
-    }
+    @page { margin: 2mm; }
+    html, body { margin: 0; padding: 0; background: #fff; font-family: "Courier New", Courier, monospace; font-size: 12px; color: #000; }
+    .receipt { width: 100%; margin: 0 auto; }
+    .center { text-align: center; }
+    .sep { border-top: 1px dashed #000; margin: 6px 0; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 2px 0; vertical-align: top; }
+    thead th { border-bottom: 1px dashed #000; font-weight: bold; }
+    .ta-r { text-align: right; }
+    .item-sep td { border-bottom: 1px dashed #000; padding-top: 4px; }
+    .totals .row { display: grid; grid-template-columns: 1fr auto; margin: 2px 0; }
+    .mb-8 { margin-bottom: 8px; }
     </style>
-
 </head>
-
 <body onload="window.print()" onafterprint="window.close()">
     <div class="receipt">
-        <!-- Header toko -->
         <div class="header center mb-8">
             <p><strong><?= htmlspecialchars($toko['nama_toko'] ?? 'Toko', ENT_QUOTES, 'UTF-8'); ?></strong></p>
             <?php if (!empty($toko['alamat_toko'])): ?>
             <p><?= nl2br(htmlspecialchars($toko['alamat_toko'], ENT_QUOTES, 'UTF-8')); ?></p>
             <?php endif; ?>
         </div>
-
-        <!-- Meta -->
+        <div class="sep"></div>
         <div class="meta mb-8">
-            <div>Tanggal</div>
-            <div><?= date('d/m/Y H:i'); ?></div>
-            <div>Kasir</div>
-            <div><?= $kasir !== '' ? $kasir : '-'; ?></div>
+            <div><strong>No Transaksi: <?= $noTransaksiDisplay; ?></strong></div>
+            <div>Tanggal: <?= $tanggal; ?></div>
+            <div>Kasir: <?= $kasir; ?></div>
+            <?php if ($customer !== '-' && $customer !== ''): ?><div>Member: <?= $customer; ?></div><?php endif; ?>
         </div>
-
-        <!-- Daftar item -->
-        <table class="mb-6">
-            <thead>
-                <tr>
-                    <th>Barang</th>
-                    <th class="ta-r">Subtotal</th>
-                </tr>
-            </thead>
+        <div class="sep"></div>
+        <table class="mb-8">
+            <thead><tr><th>Barang</th><th class="ta-r">Subtotal</th></tr></thead>
             <tbody>
-                <?php if (is_iterable($hsl)): ?>
-                <?php
-            $first = true;
-            foreach ($hsl as $isi):
-              $nama   = htmlspecialchars((string)($isi['nama_barang'] ?? ''), ENT_QUOTES, 'UTF-8');
-              $jumlah = (int)($isi['jumlah'] ?? 0);
-              $total  = (float)($isi['total'] ?? 0.0);
-              $hargaSatuan = $jumlah > 0 ? $total / $jumlah : $total;
-          ?>
-                <?php if (!$first): ?>
-                <tr class="item-sep">
-                    <td colspan="2"></td>
-                </tr>
-                <?php endif; $first = false; ?>
-                <tr>
-                    <td class="item-name"><?= $nama; ?></td>
-                    <td class="ta-r"><?= rupiah($total); ?></td>
-                </tr>
-                <tr>
-                    <td><?= $jumlah; ?> × <?= rupiah($hargaSatuan); ?></td>
-                    <td class="ta-r"></td>
-                </tr>
+                <?php if (is_iterable($items) && count($items) > 0): ?>
+                <?php $firstRow = true; foreach ($items as $isi):
+                    $nama = htmlspecialchars((string)($isi['nama_barang'] ?? ''), ENT_QUOTES, 'UTF-8');
+                    $jumlah = (int)($isi['jumlah'] ?? 0);
+                    $total = (float)($isi['total'] ?? 0.0);
+                    $hargaSatuan = $jumlah > 0 ? $total / $jumlah : $total;
+                ?>
+                <?php if (!$firstRow): ?><tr class="item-sep"><td colspan="2"></td></tr><?php endif; $firstRow = false; ?>
+                <tr><td><?= $nama; ?></td><td class="ta-r"><?= rupiah($total); ?></td></tr>
+                <tr><td><?= $jumlah; ?> × <?= rupiah($hargaSatuan); ?></td><td></td></tr>
                 <?php endforeach; ?>
                 <?php else: ?>
-                <tr>
-                    <td colspan="2" class="center">Tidak ada data.</td>
-                </tr>
+                <tr><td colspan="2" class="center">Tidak ada data.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
-
         <div class="sep"></div>
-
-        <!-- Totals -->
         <div class="totals">
-            <div class="row">
-                <div>Total Belanja</div>
-                <div><?= rupiah($totalBelanja); ?></div>
-            </div>
-            <?php if ($diskonPersen > 0): ?>
-            <div class="row">
-                <div>Diskon (<?= number_format($diskonPersen, 1); ?>%)</div>
-                <div>- <?= rupiah(($totalBelanja * $diskonPersen) / 100); ?></div>
-            </div>
+            <div class="row"><div>Total Belanja</div><div><?= rupiah($totalBelanja); ?></div></div>
+            <?php if ($diskonMemberNominal > 0): ?>
+            <div class="row"><div>Diskon Member</div><div>- <?= rupiah($diskonMemberNominal); ?></div></div>
+            <?php endif; ?>
+            <?php if ($diskonPoinNominal > 0 && $poinDigunakan > 0): ?>
+            <div class="row"><div>Diskon Poin (<?= $poinDigunakan; ?> poin)</div><div>- <?= rupiah($diskonPoinNominal); ?></div></div>
+            <?php endif; ?>
+            <?php $diskonLain = max(0, $diskonNominal - $diskonMemberNominal - $diskonPoinNominal); ?>
+            <?php if ($diskonLain > 0): ?>
+            <div class="row"><div>Diskon Tambahan</div><div>- <?= rupiah($diskonLain); ?></div></div>
             <?php endif; ?>
             <?php if ($diskonNominal > 0): ?>
-            <div class="row">
-                <div>Diskon Poin</div>
-                <div>- <?= rupiah($diskonNominal); ?></div>
-            </div>
+            <div class="row"><div><strong>Total Diskon</strong></div><div><strong>- <?= rupiah($diskonNominal); ?></strong></div></div>
             <?php endif; ?>
-            <?php if (($diskonPersen > 0 || $diskonNominal > 0)): ?>
-            <div class="row">
-                <div><strong>Total Diskon</strong></div>
-                <div><strong>- <?= rupiah(($totalBelanja * $diskonPersen / 100) + $diskonNominal); ?></strong></div>
-            </div>
+            <div class="row"><div><strong>Total Akhir</strong></div><div><strong><?= rupiah($totalAkhir); ?></strong></div></div>
+            <div class="row"><div>Bayar</div><div><?= rupiah($bayarNominal); ?></div></div>
+            <div class="row"><div>Kembali</div><div><?= $kembaliNominal < 0 ? '<strong>- ' . rupiah(abs($kembaliNominal)) . '</strong>' : rupiah($kembaliNominal); ?></div></div>
+            <?php if ($customer !== '-' && ($poinDidapat > 0 || $poinDigunakan > 0 || $poinAkhir > 0)): ?>
+            <div class="sep"></div>
+            <div class="row"><div>Poin Didapat</div><div><?= $poinDidapat; ?> poin</div></div>
+            <?php if ($poinDigunakan > 0): ?><div class="row"><div>Poin Digunakan</div><div><?= $poinDigunakan; ?> poin</div></div><?php endif; ?>
+            <div class="row"><div>Total Poin Member</div><div><?= $poinAkhir; ?> poin</div></div>
             <?php endif; ?>
-            <div class="row">
-                <div><strong>Total Akhir</strong></div>
-                <div><strong><?= rupiah($totalAkhir); ?></strong></div>
-            </div>
-            <div class="row">
-                <div>Bayar</div>
-                <div><?= rupiah($bayarNominal); ?></div>
-            </div>
-            <div class="row">
-                <div>Kembali</div>
-                <div><?= $kembaliNominal < 0 ? '<strong>- ' . rupiah(abs($kembaliNominal)) . '</strong>' : rupiah($kembaliNominal); ?></div>
-            </div>
         </div>
-
         <div class="sep"></div>
-
-        <!-- Footer -->
-        <div class="footer center mb-4">
-            <p>Terima kasih telah berbelanja!</p>
-        </div>
+        <div class="footer center mb-4"><p>Terima kasih telah berbelanja!</p></div>
     </div>
 </body>
-
 </html>

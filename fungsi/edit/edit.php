@@ -166,6 +166,13 @@ if (!empty($_SESSION['admin'])) {
         if ($min_stok < 1) {
             $min_stok = 3; // default minimum stock
         }
+        $diskon_member_persen = get_post_float('diskon_member_persen');
+        if ($diskon_member_persen < 0) {
+            $diskon_member_persen = 0.0;
+        }
+        if ($diskon_member_persen > 100) {
+            $diskon_member_persen = 100.0;
+        }
         $id = '1';
 
         $availableColumns = [];
@@ -210,6 +217,10 @@ if (!empty($_SESSION['admin'])) {
         if (isset($availableColumns['min_stok'])) {
             $updateParts[] = 'min_stok=?';
             $data[] = $min_stok;
+        }
+        if (isset($availableColumns['diskon_member_persen'])) {
+            $updateParts[] = 'diskon_member_persen=?';
+            $data[] = $diskon_member_persen;
         }
 
         $data[] = $id;
@@ -600,97 +611,162 @@ if (!empty($_SESSION['admin'])) {
     if (!empty($_POST['proses_bayar_ajax'])) {
         ob_clean();
         header('Content-Type: application/json');
-        
+
         try {
-            $totalInput = filter_input(INPUT_POST, 'total', FILTER_SANITIZE_NUMBER_FLOAT, ['flags' => FILTER_FLAG_ALLOW_FRACTION]);
-            $bayarInput = filter_input(INPUT_POST, 'bayar', FILTER_SANITIZE_NUMBER_FLOAT, ['flags' => FILTER_FLAG_ALLOW_FRACTION]);
-            $customerIdInput = filter_input(INPUT_POST, 'customer_id', FILTER_VALIDATE_INT);
-            $diskonPersenInput = filter_input(INPUT_POST, 'diskon_persen', FILTER_SANITIZE_NUMBER_FLOAT, ['flags' => FILTER_FLAG_ALLOW_FRACTION]);
-            $diskonNominalInput = filter_input(INPUT_POST, 'diskon_nominal', FILTER_SANITIZE_NUMBER_FLOAT, ['flags' => FILTER_FLAG_ALLOW_FRACTION]);
-            $totalAkhirInput = filter_input(INPUT_POST, 'total_akhir', FILTER_SANITIZE_NUMBER_FLOAT, ['flags' => FILTER_FLAG_ALLOW_FRACTION]);
-            $poinDigunakanInput = filter_input(INPUT_POST, 'poin_digunakan', FILTER_VALIDATE_INT);
-            
-            $total = is_numeric($totalInput) ? (float) $totalInput : 0.0;
-            $bayar = is_numeric($bayarInput) ? (float) $bayarInput : 0.0;
-            $customerId = ($customerIdInput !== null && $customerIdInput !== false) ? (int) $customerIdInput : 0;
-            $diskon_persen = is_numeric($diskonPersenInput) ? (float) $diskonPersenInput : 0.0;
-            $diskon_nominal = is_numeric($diskonNominalInput) ? (float) $diskonNominalInput : 0.0;
-            $total_akhir = is_numeric($totalAkhirInput) ? (float) $totalAkhirInput : ($total - $diskon_nominal);
-            $poin_digunakan = ($poinDigunakanInput !== null && $poinDigunakanInput !== false) ? (int) $poinDigunakanInput : 0;
-            
-            if($bayar <= 0.0) {
+            $total = get_post_float('total');
+            $bayar = get_post_float('bayar');
+            $customerId = get_post_int('customer_id');
+            $diskon_persen = get_post_float('diskon_persen');
+            $diskon_nominal_input = get_post_float('diskon_nominal');
+            $total_akhir_input = get_post_float('total_akhir');
+            $poin_digunakan = get_post_int('poin_digunakan');
+
+            if ($total <= 0) {
+                echo json_encode(['success' => false, 'message' => 'Keranjang kosong atau total transaksi tidak valid!']);
+                exit;
+            }
+            if ($bayar <= 0.0) {
                 echo json_encode(['success' => false, 'message' => 'Masukkan jumlah bayar terlebih dahulu!']);
                 exit;
             }
-            
-            if($bayar < $total_akhir) {
-                $kurang = $total_akhir - $bayar;
-                echo json_encode(['success' => false, 'message' => 'Uang Kurang! Rp ' . number_format($kurang, 0, ',', '.')]);
-                exit;
+            if ($poin_digunakan < 0) {
+                $poin_digunakan = 0;
             }
-            
-            $hitung = $bayar - $total_akhir;  // Kembalian
+
             $idBarangList = filter_input(INPUT_POST, 'id_barang', FILTER_DEFAULT, ['flags' => FILTER_REQUIRE_ARRAY]);
             $idMemberList = filter_input(INPUT_POST, 'id_member', FILTER_DEFAULT, ['flags' => FILTER_REQUIRE_ARRAY]);
             $jumlahList = filter_input(INPUT_POST, 'jumlah', FILTER_VALIDATE_INT, ['flags' => FILTER_REQUIRE_ARRAY]);
             $totalList = filter_input(INPUT_POST, 'total1', FILTER_SANITIZE_NUMBER_FLOAT, ['flags' => FILTER_REQUIRE_ARRAY | FILTER_FLAG_ALLOW_FRACTION]);
             $tglInputList = filter_input(INPUT_POST, 'tgl_input', FILTER_UNSAFE_RAW, ['flags' => FILTER_REQUIRE_ARRAY | FILTER_FLAG_NO_ENCODE_QUOTES]);
             $periodeList = filter_input(INPUT_POST, 'periode', FILTER_UNSAFE_RAW, ['flags' => FILTER_REQUIRE_ARRAY | FILTER_FLAG_NO_ENCODE_QUOTES]);
-            
+
             $jumlahDipilih = is_array($idBarangList) ? count($idBarangList) : 0;
-            
-            if($jumlahDipilih == 0) {
+            if ($jumlahDipilih === 0) {
                 echo json_encode(['success' => false, 'message' => 'Keranjang kosong!']);
                 exit;
             }
-            
-            for($x = 0; $x < $jumlahDipilih; $x++) {
+
+            $diskonMemberPersen = 0.0;
+            if ($customerId > 0 && function_exists('pos_column_exists') && pos_column_exists($config, 'toko', 'diskon_member_persen')) {
+                $tokoStmt = $config->prepare("SELECT diskon_member_persen FROM toko WHERE id_toko = '1' LIMIT 1");
+                $tokoStmt->execute();
+                $tokoRow = $tokoStmt->fetch();
+                $diskonMemberPersen = isset($tokoRow['diskon_member_persen']) ? (float) $tokoRow['diskon_member_persen'] : 0.0;
+            }
+            if ($diskonMemberPersen < 0) { $diskonMemberPersen = 0.0; }
+            if ($diskonMemberPersen > 100) { $diskonMemberPersen = 100.0; }
+
+            $config->beginTransaction();
+
+            $poinSebelum = 0;
+            if ($customerId > 0) {
+                $customerStmt = $config->prepare('SELECT poin_diskon FROM customer WHERE id_customer = ? FOR UPDATE');
+                $customerStmt->execute([$customerId]);
+                $customerRow = $customerStmt->fetch();
+                if (!$customerRow) {
+                    throw new RuntimeException('Customer/member tidak ditemukan.');
+                }
+                $poinSebelum = (int) $customerRow['poin_diskon'];
+                if ($poin_digunakan > $poinSebelum) {
+                    throw new RuntimeException('Poin member tidak cukup. Poin tersedia: '.$poinSebelum.' poin.');
+                }
+            } else {
+                $poin_digunakan = 0;
+            }
+
+            $diskonPoinNominal = ($customerId > 0 && $poin_digunakan > 0) ? ($poin_digunakan * 1000.0) : 0.0;
+            $diskonMemberNominal = ($customerId > 0 && $diskonMemberPersen > 0) ? (($total * $diskonMemberPersen) / 100.0) : 0.0;
+            $diskonTambahanNominal = max(0.0, $diskon_nominal_input - $diskonMemberNominal - $diskonPoinNominal);
+            $diskon_nominal = $diskonMemberNominal + $diskonPoinNominal + $diskonTambahanNominal;
+
+            $total_akhir = $total - $diskon_nominal;
+            if ($total_akhir < 0) {
+                $total_akhir = 0.0;
+            }
+            if ($total_akhir_input > 0 && abs($total_akhir - $total_akhir_input) <= 1) {
+                $total_akhir = $total_akhir_input;
+            }
+
+            if ($bayar < $total_akhir) {
+                $kurang = $total_akhir - $bayar;
+                $config->rollBack();
+                echo json_encode(['success' => false, 'message' => 'Uang Kurang! Rp ' . number_format($kurang, 0, ',', '.')]);
+                exit;
+            }
+
+            $hitung = $bayar - $total_akhir;
+            $poinDidapat = ($customerId > 0) ? (int) floor($total_akhir / 50000) : 0;
+            $poinAkhir = ($customerId > 0) ? ($poinSebelum - $poin_digunakan + $poinDidapat) : 0;
+            $noTransaksi = 'TRX-' . date('YmdHis') . '-' . random_int(100, 999);
+            $insertedRows = 0;
+
+            for ($x = 0; $x < $jumlahDipilih; $x++) {
                 $barangId = '';
                 if (is_array($idBarangList) && isset($idBarangList[$x]) && is_string($idBarangList[$x]) && preg_match('/^[A-Za-z0-9-]+$/', $idBarangList[$x])) {
                     $barangId = $idBarangList[$x];
                 }
-                
+
                 $memberId = (is_array($idMemberList) && isset($idMemberList[$x])) ? (int) $idMemberList[$x] : 0;
                 $jumlahItem = (is_array($jumlahList) && isset($jumlahList[$x]) && $jumlahList[$x] !== false) ? (int) $jumlahList[$x] : 0;
                 $totalItem = (is_array($totalList) && isset($totalList[$x]) && $totalList[$x] !== false && $totalList[$x] !== '') ? (float) $totalList[$x] : 0.0;
-                $tglInputItem = (is_array($tglInputList) && isset($tglInputList[$x])) ? trim((string) $tglInputList[$x]) : '';
-                $periodeItem = (is_array($periodeList) && isset($periodeList[$x])) ? trim((string) $periodeList[$x]) : '';
-                
-                if ($barangId === '' || $memberId <= 0 || $jumlahItem <= 0 || $tglInputItem === '' || $periodeItem === '') {
+                $tglInputItem = (is_array($tglInputList) && isset($tglInputList[$x])) ? trim((string) $tglInputList[$x]) : date('j F Y, G:i');
+                $periodeItem = (is_array($periodeList) && isset($periodeList[$x])) ? trim((string) $periodeList[$x]) : date('m-Y');
+
+                if ($barangId === '' || $memberId <= 0 || $jumlahItem <= 0 || $periodeItem === '') {
                     continue;
                 }
-                
-                // Hitung total_akhir per item (proporsi dari total akhir transaksi)
+
                 $totalAkhirItem = $total > 0 ? ($totalItem / $total) * $total_akhir : $totalItem;
-                
-                $d = array($barangId, $memberId, $customerId, $jumlahItem, $totalItem, $diskon_persen, $diskon_nominal, $totalAkhirItem, $bayar, $hitung, $tglInputItem, $periodeItem);
-                $sql = "INSERT INTO nota (id_barang,id_member,id_customer,jumlah,total,diskon_persen,diskon_nominal,total_akhir,bayar,kembalian,tanggal_input,periode) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)";
+
+                $sql = "INSERT INTO nota
+                    (no_transaksi,id_barang,id_member,id_customer,jumlah,total,diskon_persen,diskon_nominal,diskon_member_nominal,diskon_poin_nominal,total_akhir,bayar,kembalian,tanggal_input,periode,poin_digunakan,poin_didapat,poin_akhir)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
                 $row = $config->prepare($sql);
-                $row->execute($d);
-                
-                $sql_barang = "SELECT * FROM barang WHERE id_barang = ?";
+                $row->execute([
+                    $noTransaksi,
+                    $barangId,
+                    $memberId,
+                    $customerId,
+                    $jumlahItem,
+                    $totalItem,
+                    $diskon_persen,
+                    $diskon_nominal,
+                    $diskonMemberNominal,
+                    $diskonPoinNominal,
+                    $totalAkhirItem,
+                    $bayar,
+                    $hitung,
+                    $tglInputItem,
+                    $periodeItem,
+                    $poin_digunakan,
+                    $poinDidapat,
+                    $poinAkhir
+                ]);
+                $insertedRows++;
+
+                $sql_barang = "SELECT * FROM barang WHERE id_barang = ? FOR UPDATE";
                 $row_barang = $config->prepare($sql_barang);
-                $row_barang->execute(array($barangId));
+                $row_barang->execute([$barangId]);
                 $hsl = $row_barang->fetch();
-                
+
                 if ($hsl) {
                     $stok = (int) $hsl['stok'];
-                    $idb  = $hsl['id_barang'];
-                    
+                    if ($stok < $jumlahItem) {
+                        throw new RuntimeException('Stok barang ' . $barangId . ' tidak mencukupi.');
+                    }
                     $total_stok = $stok - $jumlahItem;
                     $sql_stok = "UPDATE barang SET stok = ? WHERE id_barang = ?";
                     $row_stok = $config->prepare($sql_stok);
-                    $row_stok->execute(array($total_stok, $idb));
-                    
-                    // Update customer_barang untuk tracking
-                    if($customerId > 0) {
+                    $row_stok->execute([$total_stok, $barangId]);
+
+                    if ($customerId > 0) {
                         $sqlCheck = "SELECT * FROM customer_barang WHERE id_customer = ? AND id_barang = ?";
                         $rowCheck = $config->prepare($sqlCheck);
                         $rowCheck->execute([$customerId, $barangId]);
                         $existing = $rowCheck->fetch();
-                        
-                        if($existing) {
-                            $freq = (int)$existing['frekuensi_beli'] + 1;
+
+                        if ($existing) {
+                            $freq = (int) $existing['frekuensi_beli'] + 1;
                             $sqlUpdate = "UPDATE customer_barang SET terakhir_beli = NOW(), frekuensi_beli = ?, jumlah_terakhir = ? WHERE id_customer = ? AND id_barang = ?";
                             $rowUpdate = $config->prepare($sqlUpdate);
                             $rowUpdate->execute([$freq, $jumlahItem, $customerId, $barangId]);
@@ -702,30 +778,43 @@ if (!empty($_SESSION['admin'])) {
                     }
                 }
             }
-            
-            // Update total belanja customer dan kurangi poin
-            if($customerId > 0) {
-                $sqlUpdateCustomer = "UPDATE customer SET total_belanja = total_belanja + ?, poin_diskon = poin_diskon - ? WHERE id_customer = ?";
-                $rowUpdateCustomer = $config->prepare($sqlUpdateCustomer);
-                $rowUpdateCustomer->execute([$total_akhir, $poin_digunakan, $customerId]);
+
+            if ($insertedRows === 0) {
+                throw new RuntimeException('Tidak ada item transaksi yang valid untuk disimpan.');
             }
-            
+
+            if ($customerId > 0) {
+                $sqlUpdateCustomer = "UPDATE customer SET total_belanja = total_belanja + ?, poin_diskon = ? WHERE id_customer = ?";
+                $rowUpdateCustomer = $config->prepare($sqlUpdateCustomer);
+                $rowUpdateCustomer->execute([$total_akhir, $poinAkhir, $customerId]);
+            }
+
+            $config->commit();
+
             $nmMember = isset($_SESSION['admin']['nm_member']) ? $_SESSION['admin']['nm_member'] : '';
-            
+
             echo json_encode([
-                'success' => true, 
+                'success' => true,
                 'message' => 'Pembayaran berhasil!',
+                'no_transaksi' => $noTransaksi,
                 'bayar' => $bayar,
                 'kembalian' => $hitung,
                 'nm_member' => $nmMember,
                 'diskon_persen' => $diskon_persen,
                 'diskon_nominal' => $diskon_nominal,
+                'diskon_member_nominal' => $diskonMemberNominal,
+                'diskon_poin_nominal' => $diskonPoinNominal,
                 'total_akhir' => $total_akhir,
-                'total_belanja' => $total
+                'total_belanja' => $total,
+                'poin_digunakan' => $poin_digunakan,
+                'poin_didapat' => $poinDidapat,
+                'poin_akhir' => $poinAkhir
             ]);
             exit;
-            
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
+            if ($config instanceof PDO && $config->inTransaction()) {
+                $config->rollBack();
+            }
             echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
             exit;
         }

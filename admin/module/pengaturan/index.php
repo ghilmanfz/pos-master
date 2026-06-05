@@ -48,6 +48,15 @@ $showSuccess = is_string($successParam) && $successParam !== '';
 						<small class="text-muted">Sistem akan memberi notifikasi jika stok barang kurang dari atau sama dengan nilai ini</small>
 					</div>
 				</div>
+				<div class="col-md-6">
+					<div class="form-group">
+						<label for="diskon_member_persen">Diskon Member (%)</label>
+						<input type="number" step="0.01" class="form-control" name="diskon_member_persen" id="diskon_member_persen"
+							value="<?= htmlspecialchars($toko['diskon_member_persen'] ?? '2.00', ENT_QUOTES, 'UTF-8');?>"
+							placeholder="Contoh: 2" min="0" max="100" required>
+						<small class="text-muted">Persentase diskon otomatis untuk transaksi yang memilih customer/member. Nilai ini tidak lagi hardcode.</small>
+					</div>
+				</div>
 			</div>
 			<!-- Hidden fields for API settings -->
 			<input type="hidden" name="api_fonte_token" value="<?= htmlspecialchars($toko['api_fonte_token'] ?? '', ENT_QUOTES, 'UTF-8');?>">
@@ -88,16 +97,17 @@ $showSuccess = is_string($successParam) && $successParam !== '';
 			<input type="hidden" name="alamat" value="<?= htmlspecialchars($toko['alamat_toko'] ?? '', ENT_QUOTES, 'UTF-8');?>">
 			<input type="hidden" name="kontak" value="<?= htmlspecialchars($toko['tlp'] ?? '', ENT_QUOTES, 'UTF-8');?>">
 			<input type="hidden" name="pemilik" value="<?= htmlspecialchars($toko['nama_pemilik'] ?? '', ENT_QUOTES, 'UTF-8');?>">
-			<input type="hidden" name="min_stok" value="<?= htmlspecialchars($toko['min_stok'] ?? '3', ENT_QUOTES, 'UTF-8');?>">>
-			
-			<div class="row">
-				<div class="col-md-12">
-					<div class="form-group">
-						<label for="api_fonte_token">API Token Fonnte *</label>
+						<input type="hidden" name="min_stok" value="<?= htmlspecialchars($toko['min_stok'] ?? '3', ENT_QUOTES, 'UTF-8');?>">
+						<input type="hidden" name="diskon_member_persen" value="<?= htmlspecialchars($toko['diskon_member_persen'] ?? '2.00', ENT_QUOTES, 'UTF-8');?>">
+						<div class="row">
+							<div class="col-md-12">
+								<div class="form-group">
+									<label for="api_fonte_token">API Token Fonnte *</label>
 						<input type="text" class="form-control" name="api_fonte_token" id="api_fonte_token"
 							value="<?= htmlspecialchars($toko['api_fonte_token'] ?? '', ENT_QUOTES, 'UTF-8');?>"
 							placeholder="Masukkan API Token dari Fonnte">
 						<small class="text-muted">Login ke <a href="https://fonnte.com" target="_blank">Fonnte.com</a> → Menu Account → API → Copy Token</small>
+						</div>
 					</div>
 				</div>
 				<div class="col-md-6">

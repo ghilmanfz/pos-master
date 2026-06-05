@@ -25,6 +25,9 @@
         $notaParamRaw = filter_input(INPUT_GET, 'nota', FILTER_UNSAFE_RAW, ['flags' => FILTER_FLAG_NO_ENCODE_QUOTES]);
         $notaAction = is_string($notaParamRaw) ? trim($notaParamRaw) : '';
         $isNotaYes = ($notaAction === 'yes');
+        $diskonMemberPersenAktif = isset($toko['diskon_member_persen']) ? (float) $toko['diskon_member_persen'] : 2.0;
+        if ($diskonMemberPersenAktif < 0) { $diskonMemberPersenAktif = 0.0; }
+        if ($diskonMemberPersenAktif > 100) { $diskonMemberPersenAktif = 100.0; }
 ?>
         <h4>Keranjang Penjualan</h4>
         <br>
@@ -118,7 +121,7 @@
 								<i class="fa fa-info-circle"></i> <strong>Mekanisme Poin:</strong><br>
 								• <strong>Gunakan:</strong> 1 Poin = Rp 1.000 diskon<br>
 								• <strong>Dapatkan:</strong> Rp 50.000 belanja = +1 Poin<br>
-								• <strong>Bonus:</strong> Diskon Member 2% otomatis!
+								• <strong>Bonus:</strong> Diskon Member <?= htmlspecialchars((string)$diskonMemberPersenAktif, ENT_QUOTES, 'UTF-8');?>% otomatis!
 							</small>
 						</div>
 					</div>
@@ -380,7 +383,7 @@
 									<input type="hidden" name="total" id="total_semua" value="<?= htmlspecialchars((string) $total_bayar, ENT_QUOTES, 'UTF-8');?>"></td>
 								</tr>
 								<tr id="diskon-member-row" style="display:none;">
-									<td><strong>Diskon Member (2%)</strong></td>
+									<td><strong>Diskon Member (<?= htmlspecialchars((string)$diskonMemberPersenAktif, ENT_QUOTES, 'UTF-8');?>%)</strong></td>
 									<td>
 										<input type="text" class="form-control" id="diskon_member" value="Rp 0" readonly style="font-weight: bold; color: #28a745;">
 									</td>
@@ -389,6 +392,13 @@
 									<td><strong>Diskon Poin</strong></td>
 									<td>
 										<input type="text" class="form-control" id="diskon_poin" value="Rp 0" readonly style="font-weight: bold; color: #28a745;">
+									</td>
+								</tr>
+								<tr id="estimasi-poin-row" style="display:none;">
+									<td><strong>Estimasi Poin</strong></td>
+									<td>
+										<input type="text" class="form-control" id="estimasi_poin" value="0 poin" readonly style="font-weight: bold; color: #007bff;">
+										<small class="text-muted">Poin final dihitung setelah transaksi berhasil.</small>
 									</td>
 								</tr>
 								<tr>
@@ -510,6 +520,7 @@
 
 <script>
 // AJAX call for autocomplete 
+window.diskonMemberPersen = <?= json_encode($diskonMemberPersenAktif); ?>;
 $(document).ready(function(){
 	// Modern notification helper function
 	function showNotification(message, type, duration) {
@@ -803,9 +814,10 @@ $(document).ready(function(){
 			$("#customer-info").show();
 			$("#customer_id_hidden").val(customerId);
 			$("#diskon-member-row").show();
-			$("#diskon-poin-row").show();
+			$("#estimasi-poin-row").show();
+			$("#diskon-poin-row").hide();
 			
-			// Hitung diskon otomatis (2% untuk member)
+			// Hitung diskon otomatis sesuai pengaturan diskon member
 			hitungDiskon();
 		} else {
 			$("#customer-info").hide();
@@ -814,6 +826,7 @@ $(document).ready(function(){
 			$("#poin_digunakan").val(0);
 			$("#diskon-member-row").hide();
 			$("#diskon-poin-row").hide();
+			$("#estimasi-poin-row").hide();
 			hitungDiskon();
 		}
 	});
@@ -1003,10 +1016,11 @@ $(document).ready(function(){
 			$("#diskon_persen").val(100);
 		}
 		
-		// Hitung diskon member 2% jika ada customer
+		// Hitung diskon member sesuai pengaturan toko
 		var diskonMember = 0;
-		if(customerId) {
-			diskonMember = (total * 2) / 100; // 2% diskon member otomatis
+		var diskonMemberPersen = parseFloat(window.diskonMemberPersen) || 0;
+		if(customerId && diskonMemberPersen > 0) {
+			diskonMember = (total * diskonMemberPersen) / 100;
 		}
 		
 		// Hitung diskon dari poin (1 poin = Rp 1000)
@@ -1028,6 +1042,18 @@ $(document).ready(function(){
 		// Update tampilan dengan format Rupiah
 		$("#diskon_member").val(formatRupiah(diskonMember.toFixed(0)));
 		$("#diskon_poin").val(formatRupiah(diskonPoin.toFixed(0)));
+		if(customerId && diskonPoin > 0) {
+			$("#diskon-poin-row").show();
+		} else {
+			$("#diskon-poin-row").hide();
+		}
+		var estimasiPoin = customerId ? Math.floor(totalAkhir / 50000) : 0;
+		$("#estimasi_poin").val(estimasiPoin + " poin");
+		if(customerId) {
+			$("#estimasi-poin-row").show();
+		} else {
+			$("#estimasi-poin-row").hide();
+		}
 		$("#diskon_nominal").val(formatRupiah(diskonNominal.toFixed(0)));
 		$("#total_akhir").val(formatRupiah(totalAkhir.toFixed(0)));
 		
@@ -1104,13 +1130,19 @@ $(document).ready(function(){
 					}, 8000);
 					
 					// Buka print window
-					var printUrl = 'print.php?nm_member=' + encodeURIComponent(response.nm_member) + 
+					var printUrl = 'print.php?no_transaksi=' + encodeURIComponent(response.no_transaksi) +
+									   '&nm_member=' + encodeURIComponent(response.nm_member) + 
 								   '&bayar=' + encodeURIComponent(response.bayar) + 
 								   '&kembali=' + encodeURIComponent(response.kembalian) +
 								   '&diskon_persen=' + encodeURIComponent(response.diskon_persen) +
 								   '&diskon_nominal=' + encodeURIComponent(response.diskon_nominal) +
 								   '&total_belanja=' + encodeURIComponent(response.total_belanja) +
-								   '&total_akhir=' + encodeURIComponent(response.total_akhir);
+								   '&total_akhir=' + encodeURIComponent(response.total_akhir) +
+								   '&diskon_member_nominal=' + encodeURIComponent(response.diskon_member_nominal || 0) +
+								   '&diskon_poin_nominal=' + encodeURIComponent(response.diskon_poin_nominal || 0) +
+								   '&poin_digunakan=' + encodeURIComponent(response.poin_digunakan || 0) +
+								   '&poin_didapat=' + encodeURIComponent(response.poin_didapat || 0) +
+								   '&poin_akhir=' + encodeURIComponent(response.poin_akhir || 0);
 					window.open(printUrl, '_blank');
 					
 					// Clear keranjang via AJAX tanpa reload
